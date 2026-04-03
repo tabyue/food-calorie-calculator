@@ -688,7 +688,7 @@ input[type="number"] { -moz-appearance: textfield; }
         </div>
       </div>
     </div>
-    <footer>数据保存在浏览器本地，清除浏览器缓存会丢失数据。<br>建议定期导出备份。</footer>
+    <footer>数据安全存储在云端，跨设备自动同步。</footer>
   </div>
 </div>
 
@@ -737,9 +737,20 @@ input[type="number"] { -moz-appearance: textfield; }
   <button class="tab-bar-item" onclick="switchPage('profile')"><span class="tab-icon">👤</span>我的</button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ===========================================================================
-// FOOD DATABASE
+// SUPABASE INIT
+// ===========================================================================
+const SUPABASE_URL = "https://nuxxyvulcpksdgoyqpuc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHh5dnVsY3Brc2Rnb3lxcHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzg3MzQsImV4cCI6MjA5MDgxNDczNH0.B5tiAjQDA_j9PJi7bPEfDvTcK7XkqURfoXFS1JtLPBA";
+const ADMIN_USERNAME = "tabyue";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null; // { id (uuid), username, display_name, role }
+let currentProfile = null;
+
+// ===========================================================================
+// FOOD DATABASE (unchanged)
 // ===========================================================================
 const foodDatabase = {
   "主食": [
@@ -890,1018 +901,438 @@ let allFoods = [];
 let categories = [];
 let currentCategory = "全部";
 let searchQuery = "";
-let selectedFoods = []; // [{foodIdx, amount}]
+let selectedFoods = [];
 let currentDate = todayStr();
 let currentRange = "7";
 const dailyTarget = { calories:2000, protein:65, carbs:300, fat:60 };
 
-function getStorageKey() { return userStorageKey("dailyFoodRecords"); }
-function getCustomKey() { return userStorageKey("customFoodsV3"); }
-
 function todayStr() { return new Date().toISOString().slice(0,10); }
-
-function formatDate(s) {
-  const d = new Date(s + "T00:00:00");
-  const mm = d.getMonth()+1, dd = d.getDate();
-  const weekdays = ["日","一","二","三","四","五","六"];
-  return mm + "月" + dd + "日 周" + weekdays[d.getDay()];
-}
-
-function shortDate(s) {
-  const d = new Date(s + "T00:00:00");
-  return (d.getMonth()+1) + "/" + d.getDate();
-}
+function formatDate(s) { const d=new Date(s+"T00:00:00"); const w=["日","一","二","三","四","五","六"]; return (d.getMonth()+1)+"月"+d.getDate()+"日 周"+w[d.getDay()]; }
+function shortDate(s) { const d=new Date(s+"T00:00:00"); return (d.getMonth()+1)+"/"+d.getDate(); }
+function isAdmin() { return currentProfile && currentProfile.role === "admin"; }
 
 // ===========================================================================
 // FOOD INIT
 // ===========================================================================
 function initFoods() {
-  allFoods = []; categories = [];
-  for (const [cat, foods] of Object.entries(foodDatabase)) {
-    categories.push(cat);
-    foods.forEach(f => allFoods.push({ ...f, category: cat }));
-  }
-}
-
-function loadCustomFoods() {
-  try {
-    const saved = localStorage.getItem(getCustomKey());
-    if (saved) {
-      JSON.parse(saved).forEach(f => allFoods.push(f));
-      const extraCats = [...new Set(allFoods.slice(Object.values(foodDatabase).flat().length).map(f=>f.category))];
-      extraCats.forEach(c => { if (!categories.includes(c)) categories.push(c); });
-    }
-  } catch(e) {}
-}
-
-function saveCustomFoods() {
-  const dbCount = Object.values(foodDatabase).flat().length;
-  localStorage.setItem(getCustomKey(), JSON.stringify(allFoods.slice(dbCount)));
+  allFoods=[]; categories=[];
+  for (const [cat,foods] of Object.entries(foodDatabase)) { categories.push(cat); foods.forEach(f=>allFoods.push({...f,category:cat})); }
 }
 
 // ===========================================================================
-// DAILY RECORD STORAGE
+// SUPABASE DATA OPERATIONS
 // ===========================================================================
-function getAllRecords() {
-  try { return JSON.parse(localStorage.getItem(getStorageKey())) || {}; } catch(e) { return {}; }
+async function loadDayFromCloud(date) {
+  if (!currentUser) return null;
+  const {data} = await sb.from("daily_records").select("*").eq("user_id",currentUser.id).eq("record_date",date).single();
+  return data;
 }
 
-function getDayRecord(date) {
-  return getAllRecords()[date] || null;
+async function saveDayToCloud(date, items) {
+  if (!currentUser) return;
+  const totals = {calories:0,protein:0,carbs:0,fat:0,fiber:0};
+  items.forEach(it=>{ const r=it.amount/100; totals.calories+=it.calories*r; totals.protein+=it.protein*r; totals.carbs+=it.carbs*r; totals.fat+=it.fat*r; totals.fiber+=(it.fiber||0)*r; });
+  await sb.from("daily_records").upsert({ user_id:currentUser.id, record_date:date, items, totals, saved_at:new Date().toISOString() }, { onConflict:"user_id,record_date" });
 }
 
-function saveDayRecord(date, items) {
-  const records = getAllRecords();
-  const totals = { calories:0, protein:0, carbs:0, fat:0, fiber:0 };
-  items.forEach(it => {
-    const r = it.amount / 100;
-    totals.calories += it.calories * r;
-    totals.protein  += it.protein * r;
-    totals.carbs    += it.carbs * r;
-    totals.fat      += it.fat * r;
-    totals.fiber    += (it.fiber||0) * r;
-  });
-  records[date] = { items, totals, savedAt: new Date().toISOString() };
-  localStorage.setItem(getStorageKey(), JSON.stringify(records));
+async function deleteDayFromCloud(date) {
+  if (!currentUser) return;
+  await sb.from("daily_records").delete().eq("user_id",currentUser.id).eq("record_date",date);
 }
 
-function deleteDayRecord(date) {
-  const records = getAllRecords();
-  delete records[date];
-  localStorage.setItem(getStorageKey(), JSON.stringify(records));
+async function loadAllRecordsFromCloud() {
+  if (!currentUser) return {};
+  const {data} = await sb.from("daily_records").select("record_date,items,totals").eq("user_id",currentUser.id).order("record_date",{ascending:true});
+  const map = {};
+  (data||[]).forEach(r => { map[r.record_date] = { items:r.items, totals:r.totals }; });
+  return map;
 }
 
 // ===========================================================================
 // LOAD / SAVE current day
 // ===========================================================================
-function loadDayData() {
-  const rec = getDayRecord(currentDate);
+async function loadDayData() {
+  const rec = await loadDayFromCloud(currentDate);
   selectedFoods = [];
   if (rec && rec.items) {
     rec.items.forEach(item => {
-      // Try to find matching food in allFoods
-      let idx = allFoods.findIndex(f => f.name === item.name);
-      if (idx < 0) {
-        // Add as temporary food
-        allFoods.push({ name:item.name, emoji:item.emoji||"🍽️", calories:item.calories, protein:item.protein, carbs:item.carbs, fat:item.fat, fiber:item.fiber||0, category:"其他" });
-        idx = allFoods.length - 1;
-      }
-      selectedFoods.push({ foodIdx: idx, amount: item.amount });
+      let idx = allFoods.findIndex(f=>f.name===item.name);
+      if (idx<0) { allFoods.push({name:item.name,emoji:item.emoji||"🍽️",calories:item.calories,protein:item.protein,carbs:item.carbs,fat:item.fat,fiber:item.fiber||0,category:"其他"}); idx=allFoods.length-1; }
+      selectedFoods.push({foodIdx:idx,amount:item.amount});
     });
   }
 }
 
-function saveDay() {
-  if (selectedFoods.length === 0) { showToast("没有食物可保存"); return; }
-  const items = selectedFoods.map(s => {
-    const f = allFoods[s.foodIdx];
-    return { name:f.name, emoji:f.emoji, amount:s.amount, calories:f.calories, protein:f.protein, carbs:f.carbs, fat:f.fat, fiber:f.fiber||0 };
-  });
-  saveDayRecord(currentDate, items);
+async function saveDay() {
+  if (!selectedFoods.length) { showToast("没有食物可保存"); return; }
+  const items = selectedFoods.map(s=>{ const f=allFoods[s.foodIdx]; return {name:f.name,emoji:f.emoji,amount:s.amount,calories:f.calories,protein:f.protein,carbs:f.carbs,fat:f.fat,fiber:f.fiber||0}; });
+  await saveDayToCloud(currentDate, items);
   showToast("✅ " + formatDate(currentDate) + " 已保存");
 }
 
-function autoSave() {
-  if (selectedFoods.length > 0) {
-    const items = selectedFoods.map(s => {
-      const f = allFoods[s.foodIdx];
-      return { name:f.name, emoji:f.emoji, amount:s.amount, calories:f.calories, protein:f.protein, carbs:f.carbs, fat:f.fat, fiber:f.fiber||0 };
-    });
-    saveDayRecord(currentDate, items);
-  }
+async function autoSave() {
+  if (!currentUser || !selectedFoods.length) return;
+  const items = selectedFoods.map(s=>{ const f=allFoods[s.foodIdx]; return {name:f.name,emoji:f.emoji,amount:s.amount,calories:f.calories,protein:f.protein,carbs:f.carbs,fat:f.fat,fiber:f.fiber||0}; });
+  await saveDayToCloud(currentDate, items);
 }
 
 // ===========================================================================
 // DATE NAVIGATION
 // ===========================================================================
 function updateDateDisplay() {
-  const el = document.getElementById("dateDisplay");
-  const isToday = currentDate === todayStr();
-  el.innerHTML = formatDate(currentDate) + (isToday ? ' <span class="today-tag">今天</span>' : '');
+  const el=document.getElementById("dateDisplay"); const isToday=currentDate===todayStr();
+  el.innerHTML=formatDate(currentDate)+(isToday?' <span class="today-tag">今天</span>':'');
 }
-
-function changeDate(delta) {
-  autoSave();
-  const d = new Date(currentDate + "T00:00:00");
-  d.setDate(d.getDate() + delta);
-  currentDate = d.toISOString().slice(0,10);
-  loadDayData();
-  updateDateDisplay();
-  renderRecord();
+async function changeDate(delta) {
+  await autoSave();
+  const d=new Date(currentDate+"T00:00:00"); d.setDate(d.getDate()+delta);
+  currentDate=d.toISOString().slice(0,10);
+  await loadDayData(); updateDateDisplay(); renderRecord();
 }
-
-function openDatePicker() {
-  const picker = document.getElementById("datePicker");
-  picker.value = currentDate;
-  picker.showPicker ? picker.showPicker() : picker.click();
-}
-
-function onDatePicked(val) {
-  if (!val) return;
-  autoSave();
-  currentDate = val;
-  loadDayData();
-  updateDateDisplay();
-  renderRecord();
-}
+function openDatePicker() { const p=document.getElementById("datePicker"); p.value=currentDate; p.showPicker?p.showPicker():p.click(); }
+async function onDatePicked(val) { if(!val)return; await autoSave(); currentDate=val; await loadDayData(); updateDateDisplay(); renderRecord(); }
 
 // ===========================================================================
 // PAGE SWITCHING
 // ===========================================================================
 function switchPage(page) {
   autoSave();
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-bar-item').forEach(t => t.classList.remove('active'));
-  if (page === 'record') {
-    document.getElementById('pageRecord').classList.add('active');
-    document.querySelectorAll('.tab-bar-item')[0].classList.add('active');
-  } else if (page === 'history') {
-    document.getElementById('pageHistory').classList.add('active');
-    document.querySelectorAll('.tab-bar-item')[1].classList.add('active');
-    renderHistory();
-  } else if (page === 'profile') {
-    document.getElementById('pageProfile').classList.add('active');
-    document.querySelectorAll('.tab-bar-item')[2].classList.add('active');
-    renderProfile();
-  }
-  window.scrollTo(0, 0);
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-bar-item').forEach(t=>t.classList.remove('active'));
+  if(page==='record'){ document.getElementById('pageRecord').classList.add('active'); document.querySelectorAll('.tab-bar-item')[0].classList.add('active'); }
+  else if(page==='history'){ document.getElementById('pageHistory').classList.add('active'); document.querySelectorAll('.tab-bar-item')[1].classList.add('active'); renderHistory(); }
+  else if(page==='profile'){ document.getElementById('pageProfile').classList.add('active'); document.querySelectorAll('.tab-bar-item')[2].classList.add('active'); renderProfile(); }
+  window.scrollTo(0,0);
 }
 
 // ===========================================================================
-// RECORD PAGE RENDERING
+// RECORD PAGE RENDERING (same as before)
 // ===========================================================================
 function renderCategoryTabs() {
-  const c = document.getElementById("categoryTabs");
-  const allCount = getFilteredFoods("全部").length;
-  let h = `<button class="tab-btn ${currentCategory==='全部'?'active':''}" onclick="setCategory('全部')">全部<span class="tab-count">${allCount}</span></button>`;
-  categories.forEach(cat => {
-    const count = getFilteredFoods(cat).length;
-    if (!count) return;
-    h += `<button class="tab-btn ${currentCategory===cat?'active':''}" onclick="setCategory('${cat}')">${cat}<span class="tab-count">${count}</span></button>`;
-  });
-  c.innerHTML = h;
+  const c=document.getElementById("categoryTabs"); const ac=getFilteredFoods("全部").length;
+  let h=`<button class="tab-btn ${currentCategory==='全部'?'active':''}" onclick="setCategory('全部')">全部<span class="tab-count">${ac}</span></button>`;
+  categories.forEach(cat=>{ const n=getFilteredFoods(cat).length; if(!n)return; h+=`<button class="tab-btn ${currentCategory===cat?'active':''}" onclick="setCategory('${cat}')">${cat}<span class="tab-count">${n}</span></button>`; });
+  c.innerHTML=h;
 }
-
-function setCategory(cat) { currentCategory = cat; renderRecord(); }
-function getFilteredFoods(cat) {
-  let list = cat === "全部" ? allFoods : allFoods.filter(f => f.category === cat);
-  if (searchQuery) { const q = searchQuery.toLowerCase(); list = list.filter(f => f.name.toLowerCase().includes(q)); }
-  return list;
+function setCategory(cat){ currentCategory=cat; renderRecord(); }
+function getFilteredFoods(cat){ let l=cat==="全部"?allFoods:allFoods.filter(f=>f.category===cat); if(searchQuery){const q=searchQuery.toLowerCase();l=l.filter(f=>f.name.toLowerCase().includes(q));} return l; }
+function renderFoodGrid(){
+  const g=document.getElementById("foodGrid"); const fl=getFilteredFoods(currentCategory);
+  if(!fl.length){g.innerHTML='<div class="no-results">😅 没有找到</div>';return;}
+  g.innerHTML=""; fl.forEach(food=>{const gi=allFoods.indexOf(food);const sel=selectedFoods.some(s=>s.foodIdx===gi);const div=document.createElement("div");div.className="food-item"+(sel?" selected":"");div.onclick=()=>toggleFood(gi);div.innerHTML=`<span class="emoji">${food.emoji}</span><div class="name">${food.name}</div><div class="cal">${food.calories} kcal</div>`;g.appendChild(div);});
 }
+function onSearch(){ searchQuery=document.getElementById("searchInput").value.trim(); renderCategoryTabs(); renderFoodGrid(); }
+function toggleFood(idx){ const ei=selectedFoods.findIndex(s=>s.foodIdx===idx); if(ei>=0)selectedFoods.splice(ei,1);else selectedFoods.push({foodIdx:idx,amount:100}); renderRecord(); }
 
-function renderFoodGrid() {
-  const grid = document.getElementById("foodGrid");
-  const filtered = getFilteredFoods(currentCategory);
-  if (!filtered.length) { grid.innerHTML = '<div class="no-results">😅 没有找到</div>'; return; }
-  grid.innerHTML = "";
-  filtered.forEach(food => {
-    const gi = allFoods.indexOf(food);
-    const sel = selectedFoods.some(s => s.foodIdx === gi);
-    const div = document.createElement("div");
-    div.className = "food-item" + (sel ? " selected" : "");
-    div.onclick = () => toggleFood(gi);
-    div.innerHTML = `<span class="emoji">${food.emoji}</span><div class="name">${food.name}</div><div class="cal">${food.calories} kcal</div>`;
-    grid.appendChild(div);
-  });
+function renderSelectedList(){
+  const area=document.getElementById("selectedArea"),actions=document.getElementById("actionsArea");
+  if(!selectedFoods.length){area.innerHTML=`<div class="empty-state"><div class="empty-icon">🍽️</div><div class="empty-title">还没有添加食物</div><div class="empty-desc">点击上方食物卡片开始记录</div></div>`;actions.style.display="none";return;}
+  actions.style.display="flex";
+  let ch='<div class="selected-cards">';
+  selectedFoods.forEach((item,i)=>{const f=allFoods[item.foodIdx],r=item.amount/100;
+    ch+=`<div class="sel-card" data-idx="${i}"><div class="sel-card-top"><div class="sel-card-name"><span class="emoji-sm">${f.emoji}</span>${f.name}</div><button class="sel-card-remove" onclick="removeFood(${i})">✕</button></div><div class="sel-card-amount"><label>数量</label><input type="number" inputmode="decimal" min="0" value="${item.amount}" data-food-idx="${i}" class="js-amount-input"><span class="unit-label">克</span></div><div class="sel-card-nutrients"><div class="sel-nutrient cal-highlight"><div class="n-val" data-n="cal-${i}">${(f.calories*r).toFixed(0)}</div><div class="n-label">热量</div></div><div class="sel-nutrient"><div class="n-val" data-n="pro-${i}">${(f.protein*r).toFixed(1)}</div><div class="n-label">蛋白质</div></div><div class="sel-nutrient"><div class="n-val" data-n="carb-${i}">${(f.carbs*r).toFixed(1)}</div><div class="n-label">碳水</div></div><div class="sel-nutrient"><div class="n-val" data-n="fat-${i}">${(f.fat*r).toFixed(1)}</div><div class="n-label">脂肪</div></div></div></div>`;
+  }); ch+='</div>';
+  let th=`<div class="table-wrapper"><table class="selected-list"><thead><tr><th>食物</th><th>数量(g)</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th></th></tr></thead><tbody>`;
+  selectedFoods.forEach((item,i)=>{const f=allFoods[item.foodIdx],r=item.amount/100;
+    th+=`<tr><td><div class="food-name-cell"><span class="emoji-sm">${f.emoji}</span>${f.name}</div></td><td><input class="amount-input-desk js-amount-input" type="number" min="0" value="${item.amount}" data-food-idx="${i}"></td><td><span class="nutrient-val" data-n="dcal-${i}">${(f.calories*r).toFixed(0)} <span class="unit">kcal</span></span></td><td><span class="nutrient-val" data-n="dpro-${i}">${(f.protein*r).toFixed(1)} <span class="unit">g</span></span></td><td><span class="nutrient-val" data-n="dcarb-${i}">${(f.carbs*r).toFixed(1)} <span class="unit">g</span></span></td><td><span class="nutrient-val" data-n="dfat-${i}">${(f.fat*r).toFixed(1)} <span class="unit">g</span></span></td><td><button class="btn-remove-desk" onclick="removeFood(${i})">✕</button></td></tr>`;
+  }); th+=`</tbody></table></div>`;
+  area.innerHTML=ch+th;
+  area.querySelectorAll('.js-amount-input').forEach(input=>{input.addEventListener('input',handleAmountInput);input.addEventListener('change',handleAmountChange);});
 }
-
-function onSearch() { searchQuery = document.getElementById("searchInput").value.trim(); renderCategoryTabs(); renderFoodGrid(); }
-
-function toggleFood(idx) {
-  const ei = selectedFoods.findIndex(s => s.foodIdx === idx);
-  if (ei >= 0) selectedFoods.splice(ei, 1);
-  else selectedFoods.push({ foodIdx: idx, amount: 100 });
-  renderRecord();
+function handleAmountInput(e){const i=parseInt(e.target.dataset.foodIdx);selectedFoods[i].amount=parseFloat(e.target.value)||0;updateNutrientDisplay(i);renderSummary();}
+function handleAmountChange(e){handleAmountInput(e);}
+function updateNutrientDisplay(i){
+  const f=allFoods[selectedFoods[i].foodIdx],r=selectedFoods[i].amount/100;
+  const u=(sel,val)=>{const el=document.querySelector(sel);if(el)el.textContent=val;};
+  u(`[data-n="cal-${i}"]`,(f.calories*r).toFixed(0));u(`[data-n="pro-${i}"]`,(f.protein*r).toFixed(1));u(`[data-n="carb-${i}"]`,(f.carbs*r).toFixed(1));u(`[data-n="fat-${i}"]`,(f.fat*r).toFixed(1));
+  const uh=(sel,val)=>{const el=document.querySelector(sel);if(el)el.innerHTML=val;};
+  uh(`[data-n="dcal-${i}"]`,(f.calories*r).toFixed(0)+' <span class="unit">kcal</span>');uh(`[data-n="dpro-${i}"]`,(f.protein*r).toFixed(1)+' <span class="unit">g</span>');uh(`[data-n="dcarb-${i}"]`,(f.carbs*r).toFixed(1)+' <span class="unit">g</span>');uh(`[data-n="dfat-${i}"]`,(f.fat*r).toFixed(1)+' <span class="unit">g</span>');
 }
+function removeFood(i){selectedFoods.splice(i,1);renderRecord();}
+async function clearAll(){if(!confirm("确定清空？"))return;selectedFoods=[];await deleteDayFromCloud(currentDate);renderRecord();}
 
-function renderSelectedList() {
-  const area = document.getElementById("selectedArea");
-  const actions = document.getElementById("actionsArea");
-  if (!selectedFoods.length) {
-    area.innerHTML = `<div class="empty-state"><div class="empty-icon">🍽️</div><div class="empty-title">还没有添加食物</div><div class="empty-desc">点击上方食物卡片开始记录</div></div>`;
-    actions.style.display = "none"; return;
-  }
-  actions.style.display = "flex";
-  // Cards (mobile)
-  let ch = '<div class="selected-cards">';
-  selectedFoods.forEach((item, i) => {
-    const f = allFoods[item.foodIdx], r = item.amount/100;
-    ch += `<div class="sel-card" data-idx="${i}"><div class="sel-card-top"><div class="sel-card-name"><span class="emoji-sm">${f.emoji}</span>${f.name}</div><button class="sel-card-remove" onclick="removeFood(${i})">✕</button></div><div class="sel-card-amount"><label>数量</label><input type="number" inputmode="decimal" min="0" value="${item.amount}" data-food-idx="${i}" class="js-amount-input"><span class="unit-label">克</span></div><div class="sel-card-nutrients"><div class="sel-nutrient cal-highlight"><div class="n-val" data-n="cal-${i}">${(f.calories*r).toFixed(0)}</div><div class="n-label">热量</div></div><div class="sel-nutrient"><div class="n-val" data-n="pro-${i}">${(f.protein*r).toFixed(1)}</div><div class="n-label">蛋白质</div></div><div class="sel-nutrient"><div class="n-val" data-n="carb-${i}">${(f.carbs*r).toFixed(1)}</div><div class="n-label">碳水</div></div><div class="sel-nutrient"><div class="n-val" data-n="fat-${i}">${(f.fat*r).toFixed(1)}</div><div class="n-label">脂肪</div></div></div></div>`;
-  });
-  ch += '</div>';
-  // Table (desktop)
-  let th = `<div class="table-wrapper"><table class="selected-list"><thead><tr><th>食物</th><th>数量(g)</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th></th></tr></thead><tbody>`;
-  selectedFoods.forEach((item, i) => {
-    const f = allFoods[item.foodIdx], r = item.amount/100;
-    th += `<tr><td><div class="food-name-cell"><span class="emoji-sm">${f.emoji}</span>${f.name}</div></td><td><input class="amount-input-desk js-amount-input" type="number" min="0" value="${item.amount}" data-food-idx="${i}"></td><td><span class="nutrient-val" data-n="dcal-${i}">${(f.calories*r).toFixed(0)} <span class="unit">kcal</span></span></td><td><span class="nutrient-val" data-n="dpro-${i}">${(f.protein*r).toFixed(1)} <span class="unit">g</span></span></td><td><span class="nutrient-val" data-n="dcarb-${i}">${(f.carbs*r).toFixed(1)} <span class="unit">g</span></span></td><td><span class="nutrient-val" data-n="dfat-${i}">${(f.fat*r).toFixed(1)} <span class="unit">g</span></span></td><td><button class="btn-remove-desk" onclick="removeFood(${i})">✕</button></td></tr>`;
-  });
-  th += `</tbody></table></div>`;
-  area.innerHTML = ch + th;
-
-  // Bind input events via delegation (not inline handlers)
-  area.querySelectorAll('.js-amount-input').forEach(input => {
-    input.addEventListener('input', handleAmountInput);
-    input.addEventListener('change', handleAmountChange);
-  });
-}
-
-// Update amount WITHOUT rebuilding DOM — just update nutrient display values
-function handleAmountInput(e) {
-  const i = parseInt(e.target.dataset.foodIdx);
-  const val = parseFloat(e.target.value) || 0;
-  selectedFoods[i].amount = val;
-  updateNutrientDisplay(i);
-  renderSummary();
-}
-
-function handleAmountChange(e) {
-  const i = parseInt(e.target.dataset.foodIdx);
-  const val = parseFloat(e.target.value) || 0;
-  selectedFoods[i].amount = val;
-  updateNutrientDisplay(i);
-  renderSummary();
-}
-
-function updateNutrientDisplay(i) {
-  const f = allFoods[selectedFoods[i].foodIdx];
-  const r = selectedFoods[i].amount / 100;
-  // Mobile card nutrients
-  const cal = document.querySelector(`[data-n="cal-${i}"]`);
-  const pro = document.querySelector(`[data-n="pro-${i}"]`);
-  const carb = document.querySelector(`[data-n="carb-${i}"]`);
-  const fat = document.querySelector(`[data-n="fat-${i}"]`);
-  if (cal) cal.textContent = (f.calories * r).toFixed(0);
-  if (pro) pro.textContent = (f.protein * r).toFixed(1);
-  if (carb) carb.textContent = (f.carbs * r).toFixed(1);
-  if (fat) fat.textContent = (f.fat * r).toFixed(1);
-  // Desktop table nutrients
-  const dcal = document.querySelector(`[data-n="dcal-${i}"]`);
-  const dpro = document.querySelector(`[data-n="dpro-${i}"]`);
-  const dcarb = document.querySelector(`[data-n="dcarb-${i}"]`);
-  const dfat = document.querySelector(`[data-n="dfat-${i}"]`);
-  if (dcal) dcal.innerHTML = (f.calories * r).toFixed(0) + ' <span class="unit">kcal</span>';
-  if (dpro) dpro.innerHTML = (f.protein * r).toFixed(1) + ' <span class="unit">g</span>';
-  if (dcarb) dcarb.innerHTML = (f.carbs * r).toFixed(1) + ' <span class="unit">g</span>';
-  if (dfat) dfat.innerHTML = (f.fat * r).toFixed(1) + ' <span class="unit">g</span>';
-}
-
-function updateAmount(i, val) { selectedFoods[i].amount = parseFloat(val)||0; updateNutrientDisplay(i); renderSummary(); }
-function removeFood(i) { selectedFoods.splice(i, 1); renderRecord(); }
-function clearAll() { if (!confirm("确定清空？")) return; selectedFoods = []; deleteDayRecord(currentDate); renderRecord(); }
-
-function renderSummary() {
+function renderSummary(){
   let tc=0,tp=0,tb=0,tf=0,tfi=0;
-  selectedFoods.forEach(item => { const f=allFoods[item.foodIdx],r=item.amount/100; tc+=f.calories*r; tp+=f.protein*r; tb+=f.carbs*r; tf+=f.fat*r; tfi+=(f.fiber||0)*r; });
-  document.getElementById("totalCalories").textContent=tc.toFixed(0);
-  document.getElementById("totalProtein").textContent=tp.toFixed(1);
-  document.getElementById("totalCarbs").textContent=tb.toFixed(1);
-  document.getElementById("totalFat").textContent=tf.toFixed(1);
-  document.getElementById("totalFiber").textContent=tfi.toFixed(1);
-  const cp=Math.min(tc/dailyTarget.calories*100,100);
-  const cf=document.getElementById("calorieFill");
-  cf.style.width=cp+"%";
+  selectedFoods.forEach(item=>{const f=allFoods[item.foodIdx],r=item.amount/100;tc+=f.calories*r;tp+=f.protein*r;tb+=f.carbs*r;tf+=f.fat*r;tfi+=(f.fiber||0)*r;});
+  document.getElementById("totalCalories").textContent=tc.toFixed(0);document.getElementById("totalProtein").textContent=tp.toFixed(1);
+  document.getElementById("totalCarbs").textContent=tb.toFixed(1);document.getElementById("totalFat").textContent=tf.toFixed(1);document.getElementById("totalFiber").textContent=tfi.toFixed(1);
+  const cp=Math.min(tc/dailyTarget.calories*100,100);const cf=document.getElementById("calorieFill");cf.style.width=cp+"%";
   cf.className="progress-fill"+(tc>dailyTarget.calories?" over":cp>80?" warning":"");
   document.getElementById("calorieStatus").textContent=tc.toFixed(0)+" / "+dailyTarget.calories+" kcal";
-  document.getElementById("proteinFill").style.width=Math.min(tp/dailyTarget.protein*100,100)+"%";
-  document.getElementById("proteinStatus").innerHTML=tp.toFixed(1)+"g <span>/ "+dailyTarget.protein+"g</span>";
-  document.getElementById("carbsFill").style.width=Math.min(tb/dailyTarget.carbs*100,100)+"%";
-  document.getElementById("carbsStatus").innerHTML=tb.toFixed(1)+"g <span>/ "+dailyTarget.carbs+"g</span>";
-  document.getElementById("fatFill").style.width=Math.min(tf/dailyTarget.fat*100,100)+"%";
-  document.getElementById("fatStatus").innerHTML=tf.toFixed(1)+"g <span>/ "+dailyTarget.fat+"g</span>";
+  document.getElementById("proteinFill").style.width=Math.min(tp/dailyTarget.protein*100,100)+"%";document.getElementById("proteinStatus").innerHTML=tp.toFixed(1)+"g <span>/ "+dailyTarget.protein+"g</span>";
+  document.getElementById("carbsFill").style.width=Math.min(tb/dailyTarget.carbs*100,100)+"%";document.getElementById("carbsStatus").innerHTML=tb.toFixed(1)+"g <span>/ "+dailyTarget.carbs+"g</span>";
+  document.getElementById("fatFill").style.width=Math.min(tf/dailyTarget.fat*100,100)+"%";document.getElementById("fatStatus").innerHTML=tf.toFixed(1)+"g <span>/ "+dailyTarget.fat+"g</span>";
 }
 
-function addCustomFood() {
-  const name=document.getElementById("customName").value.trim();
-  const cal=parseFloat(document.getElementById("customCalories").value);
-  const pro=parseFloat(document.getElementById("customProtein").value)||0;
-  const carb=parseFloat(document.getElementById("customCarbs").value)||0;
-  const fat=parseFloat(document.getElementById("customFat").value)||0;
-  if (!name) { alert("请输入食物名称"); return; }
-  if (isNaN(cal)||cal<=0) { alert("请输入有效热量"); return; }
-  allFoods.push({ name, emoji:"🍽️", calories:cal, protein:pro, carbs:carb, fat, fiber:0, category:"自定义" });
-  if (!categories.includes("自定义")) categories.push("自定义");
-  saveCustomFoods();
-  selectedFoods.push({ foodIdx:allFoods.length-1, amount:100 });
+function addCustomFood(){
+  const name=document.getElementById("customName").value.trim();const cal=parseFloat(document.getElementById("customCalories").value);
+  const pro=parseFloat(document.getElementById("customProtein").value)||0;const carb=parseFloat(document.getElementById("customCarbs").value)||0;const fat=parseFloat(document.getElementById("customFat").value)||0;
+  if(!name){alert("请输入食物名称");return;}if(isNaN(cal)||cal<=0){alert("请输入有效热量");return;}
+  allFoods.push({name,emoji:"🍽️",calories:cal,protein:pro,carbs:carb,fat,fiber:0,category:"自定义"});
+  if(!categories.includes("自定义"))categories.push("自定义");
+  selectedFoods.push({foodIdx:allFoods.length-1,amount:100});
   ["customName","customCalories","customProtein","customCarbs","customFat"].forEach(id=>document.getElementById(id).value="");
-  document.activeElement.blur();
-  renderRecord();
+  document.activeElement.blur(); renderRecord();
 }
-
-function renderRecord() { renderCategoryTabs(); renderFoodGrid(); renderSelectedList(); renderSummary(); }
+function renderRecord(){renderCategoryTabs();renderFoodGrid();renderSelectedList();renderSummary();}
 
 // ===========================================================================
 // HISTORY PAGE
 // ===========================================================================
-function setRange(r) {
-  currentRange = r;
-  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  renderHistory();
+function setRange(r){currentRange=r;document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));event.target.classList.add('active');renderHistory();}
+function getDateRange(days){const dates=[];const today=new Date();for(let i=days-1;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);dates.push(d.toISOString().slice(0,10));}return dates;}
+
+async function renderHistory(){
+  const days=parseInt(currentRange);const dates=getDateRange(days);const records=await loadAllRecordsFromCloud();
+  const data=dates.map(date=>{const rec=records[date];if(rec&&rec.totals)return{date,...rec.totals,count:rec.items?rec.items.length:0};return{date,calories:0,protein:0,carbs:0,fat:0,fiber:0,count:0};});
+  const withData=data.filter(d=>d.count>0);
+  renderAverages(withData);renderCaloriesChart(data);renderMacrosChart(data);renderHistoryList(data);
 }
 
-function getDateRange(days) {
-  const dates = [];
-  const today = new Date();
-  for (let i = days-1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().slice(0,10));
-  }
-  return dates;
+function renderAverages(wd){
+  const el=document.getElementById("avgGrid");
+  if(!wd.length){el.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-light);font-size:13px;">暂无数据</div>';return;}
+  const n=wd.length;const avg=k=>(wd.reduce((s,d)=>s+d[k],0)/n).toFixed(0);
+  el.innerHTML=`<div class="avg-item"><div class="av-val av-cal">${avg('calories')}</div><div class="av-lbl">日均热量 kcal</div></div><div class="avg-item"><div class="av-val">${(wd.reduce((s,d)=>s+d.protein,0)/n).toFixed(1)}</div><div class="av-lbl">日均蛋白 g</div></div><div class="avg-item"><div class="av-val">${(wd.reduce((s,d)=>s+d.carbs,0)/n).toFixed(1)}</div><div class="av-lbl">日均碳水 g</div></div><div class="avg-item"><div class="av-val">${(wd.reduce((s,d)=>s+d.fat,0)/n).toFixed(1)}</div><div class="av-lbl">日均脂肪 g</div></div>`;
 }
 
-function renderHistory() {
-  const days = parseInt(currentRange);
-  const dates = getDateRange(days);
-  const records = getAllRecords();
-
-  // Collect data
-  const data = dates.map(date => {
-    const rec = records[date];
-    if (rec && rec.totals) return { date, ...rec.totals, count: rec.items ? rec.items.length : 0 };
-    return { date, calories:0, protein:0, carbs:0, fat:0, fiber:0, count:0 };
-  });
-
-  const withData = data.filter(d => d.count > 0);
-
-  // Averages
-  renderAverages(withData, days);
-  // Charts
-  renderCaloriesChart(data);
-  renderMacrosChart(data);
-  // List
-  renderHistoryList(data);
-}
-
-function renderAverages(withData, days) {
-  const el = document.getElementById("avgGrid");
-  if (withData.length === 0) {
-    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-light);font-size:13px;">暂无数据，开始记录后这里会显示平均值</div>';
-    return;
-  }
-  const n = withData.length;
-  const avg = (key) => (withData.reduce((s,d) => s + d[key], 0) / n).toFixed(0);
-  el.innerHTML = `
-    <div class="avg-item"><div class="av-val av-cal">${avg('calories')}</div><div class="av-lbl">日均热量 kcal</div></div>
-    <div class="avg-item"><div class="av-val">${(withData.reduce((s,d)=>s+d.protein,0)/n).toFixed(1)}</div><div class="av-lbl">日均蛋白 g</div></div>
-    <div class="avg-item"><div class="av-val">${(withData.reduce((s,d)=>s+d.carbs,0)/n).toFixed(1)}</div><div class="av-lbl">日均碳水 g</div></div>
-    <div class="avg-item"><div class="av-val">${(withData.reduce((s,d)=>s+d.fat,0)/n).toFixed(1)}</div><div class="av-lbl">日均脂肪 g</div></div>
-  `;
-}
-
-// ===========================================================================
-// CANVAS CHART DRAWING
-// ===========================================================================
-function drawLineChart(canvasId, data, series, options = {}) {
-  const canvas = document.getElementById(canvasId);
-  const dpr = window.devicePixelRatio || 1;
-  const labels = data.map(d => shortDate(d.date));
-
-  const chartW = Math.max(labels.length * 52, canvas.parentElement.clientWidth);
-  const chartH = 220;
-
-  canvas.width = chartW * dpr;
-  canvas.height = chartH * dpr;
-  canvas.style.width = chartW + "px";
-  canvas.style.height = chartH + "px";
-
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
-
-  const pad = { top: 20, right: 16, bottom: 32, left: 44 };
-  const w = chartW - pad.left - pad.right;
-  const h = chartH - pad.top - pad.bottom;
-
-  // Find max
-  let maxVal = 0;
-  series.forEach(s => { data.forEach(d => { if (d[s.key] > maxVal) maxVal = d[s.key]; }); });
-  if (options.refLine && options.refLine > maxVal) maxVal = options.refLine;
-  maxVal = Math.ceil(maxVal * 1.15 / 10) * 10 || 100;
-
-  const xStep = labels.length > 1 ? w / (labels.length - 1) : w / 2;
-
-  // Grid
-  ctx.strokeStyle = "#f1f5f9";
-  ctx.lineWidth = 1;
-  const gridLines = 4;
-  for (let i = 0; i <= gridLines; i++) {
-    const y = pad.top + h - (h / gridLines) * i;
-    ctx.beginPath();
-    ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + w, y);
-    ctx.stroke();
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "10px -apple-system, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(Math.round(maxVal / gridLines * i), pad.left - 6, y + 3);
-  }
-
-  // X labels
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "10px -apple-system, sans-serif";
-  ctx.textAlign = "center";
-  const labelSkip = labels.length > 15 ? Math.ceil(labels.length / 12) : 1;
-  labels.forEach((lbl, i) => {
-    if (i % labelSkip !== 0 && i !== labels.length - 1) return;
-    const x = pad.left + i * xStep;
-    ctx.fillText(lbl, x, chartH - 8);
-  });
-
-  // Reference line
-  if (options.refLine) {
-    const ry = pad.top + h - (options.refLine / maxVal) * h;
-    ctx.strokeStyle = options.refColor || "rgba(239,68,68,0.2)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, ry);
-    ctx.lineTo(pad.left + w, ry);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // Draw each series
-  series.forEach(s => {
-    const points = data.map((d, i) => ({
-      x: pad.left + i * xStep,
-      y: pad.top + h - (d[s.key] / maxVal) * h
-    }));
-
-    // Area
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, pad.top + h);
-    points.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(points[points.length-1].x, pad.top + h);
-    ctx.closePath();
-    ctx.fillStyle = s.fill || "rgba(16,185,129,0.08)";
-    ctx.fill();
-
-    // Line
-    ctx.beginPath();
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = 2.5;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    points.forEach((p, i) => { i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
-    ctx.stroke();
-
-    // Dots
-    points.forEach((p, i) => {
-      if (data[i][s.key] > 0) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = s.color;
-        ctx.fill();
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-    });
+// Charts (unchanged)
+function drawLineChart(canvasId,data,series,options={}){
+  const canvas=document.getElementById(canvasId);const dpr=window.devicePixelRatio||1;const labels=data.map(d=>shortDate(d.date));
+  const chartW=Math.max(labels.length*52,canvas.parentElement.clientWidth);const chartH=220;
+  canvas.width=chartW*dpr;canvas.height=chartH*dpr;canvas.style.width=chartW+"px";canvas.style.height=chartH+"px";
+  const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);
+  const pad={top:20,right:16,bottom:32,left:44};const w=chartW-pad.left-pad.right;const h=chartH-pad.top-pad.bottom;
+  let maxVal=0;series.forEach(s=>{data.forEach(d=>{if(d[s.key]>maxVal)maxVal=d[s.key];});});
+  if(options.refLine&&options.refLine>maxVal)maxVal=options.refLine;maxVal=Math.ceil(maxVal*1.15/10)*10||100;
+  const xStep=labels.length>1?w/(labels.length-1):w/2;
+  ctx.strokeStyle="#f1f5f9";ctx.lineWidth=1;const gl=4;
+  for(let i=0;i<=gl;i++){const y=pad.top+h-(h/gl)*i;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+w,y);ctx.stroke();ctx.fillStyle="#94a3b8";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="right";ctx.fillText(Math.round(maxVal/gl*i),pad.left-6,y+3);}
+  ctx.fillStyle="#94a3b8";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="center";
+  const ls=labels.length>15?Math.ceil(labels.length/12):1;
+  labels.forEach((lbl,i)=>{if(i%ls!==0&&i!==labels.length-1)return;ctx.fillText(lbl,pad.left+i*xStep,chartH-8);});
+  if(options.refLine){const ry=pad.top+h-(options.refLine/maxVal)*h;ctx.strokeStyle=options.refColor||"rgba(239,68,68,0.2)";ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(pad.left,ry);ctx.lineTo(pad.left+w,ry);ctx.stroke();ctx.setLineDash([]);}
+  series.forEach(s=>{const pts=data.map((d,i)=>({x:pad.left+i*xStep,y:pad.top+h-(d[s.key]/maxVal)*h}));
+    ctx.beginPath();ctx.moveTo(pts[0].x,pad.top+h);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.lineTo(pts[pts.length-1].x,pad.top+h);ctx.closePath();ctx.fillStyle=s.fill||"rgba(16,185,129,0.08)";ctx.fill();
+    ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=2.5;ctx.lineJoin="round";ctx.lineCap="round";pts.forEach((p,i)=>{i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});ctx.stroke();
+    pts.forEach((p,i)=>{if(data[i][s.key]>0){ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,Math.PI*2);ctx.fillStyle=s.color;ctx.fill();ctx.strokeStyle="white";ctx.lineWidth=1.5;ctx.stroke();}});
   });
 }
+function renderCaloriesChart(data){drawLineChart("chartCalories",data,[{key:"calories",color:"#ef4444",fill:"rgba(239,68,68,0.08)"}],{refLine:2000,refColor:"rgba(239,68,68,0.15)"});}
+function renderMacrosChart(data){drawLineChart("chartMacros",data,[{key:"protein",color:"#3b82f6",fill:"rgba(59,130,246,0.06)"},{key:"carbs",color:"#f59e0b",fill:"rgba(245,158,11,0.06)"},{key:"fat",color:"#8b5cf6",fill:"rgba(139,92,246,0.06)"}]);}
 
-function renderCaloriesChart(data) {
-  drawLineChart("chartCalories", data, [
-    { key: "calories", color: "#ef4444", fill: "rgba(239,68,68,0.08)" }
-  ], { refLine: 2000, refColor: "rgba(239,68,68,0.15)" });
+function renderHistoryList(data){
+  const el=document.getElementById("historyList");const rev=[...data].reverse();const wd=rev.filter(d=>d.count>0);
+  if(!wd.length){el.innerHTML='<div class="no-history">📭 这段时间还没有记录</div>';return;}
+  el.innerHTML='<div class="history-list">'+wd.map(d=>{const w=["日","一","二","三","四","五","六"];const dt=new Date(d.date+"T00:00:00");
+    return `<div class="history-item"><div onclick="goToDate('${d.date}')" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;"><div><div class="h-date">${(dt.getMonth()+1)+"/"+dt.getDate()}</div><div class="h-weekday">周${w[dt.getDay()]}</div></div><div class="h-stats"><div class="h-stat"><div class="h-val h-cal">${d.calories.toFixed(0)}</div><div class="h-lbl">kcal</div></div><div class="h-stat"><div class="h-val">${d.protein.toFixed(0)}</div><div class="h-lbl">蛋白质g</div></div><div class="h-stat"><div class="h-val">${d.carbs.toFixed(0)}</div><div class="h-lbl">碳水g</div></div><div class="h-stat"><div class="h-val">${d.fat.toFixed(0)}</div><div class="h-lbl">脂肪g</div></div></div><div class="h-count">${d.count}项</div><div class="h-arrow">›</div></div><button onclick="event.stopPropagation();deleteHistoryDay('${d.date}')" style="background:none;border:none;color:var(--text-light);font-size:16px;padding:8px;cursor:pointer;flex-shrink:0;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;">🗑️</button></div>`;
+  }).join('')+'</div>';
 }
 
-function renderMacrosChart(data) {
-  drawLineChart("chartMacros", data, [
-    { key: "protein", color: "#3b82f6", fill: "rgba(59,130,246,0.06)" },
-    { key: "carbs", color: "#f59e0b", fill: "rgba(245,158,11,0.06)" },
-    { key: "fat", color: "#8b5cf6", fill: "rgba(139,92,246,0.06)" },
-  ]);
-}
-
-function renderHistoryList(data) {
-  const el = document.getElementById("historyList");
-  const reversed = [...data].reverse();
-  const withData = reversed.filter(d => d.count > 0);
-
-  if (!withData.length) {
-    el.innerHTML = '<div class="no-history">📭 这段时间还没有记录<br>开始记录饮食后，历史数据会显示在这里</div>';
-    return;
-  }
-
-  el.innerHTML = '<div class="history-list">' + withData.map(d => {
-    const weekdays = ["日","一","二","三","四","五","六"];
-    const dt = new Date(d.date + "T00:00:00");
-    return `<div class="history-item">
-      <div onclick="goToDate('${d.date}')" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-        <div><div class="h-date">${(dt.getMonth()+1) + "/" + dt.getDate()}</div><div class="h-weekday">周${weekdays[dt.getDay()]}</div></div>
-        <div class="h-stats">
-          <div class="h-stat"><div class="h-val h-cal">${d.calories.toFixed(0)}</div><div class="h-lbl">kcal</div></div>
-          <div class="h-stat"><div class="h-val">${d.protein.toFixed(0)}</div><div class="h-lbl">蛋白质g</div></div>
-          <div class="h-stat"><div class="h-val">${d.carbs.toFixed(0)}</div><div class="h-lbl">碳水g</div></div>
-          <div class="h-stat"><div class="h-val">${d.fat.toFixed(0)}</div><div class="h-lbl">脂肪g</div></div>
-        </div>
-        <div class="h-count">${d.count}项</div>
-        <div class="h-arrow">›</div>
-      </div>
-      <button onclick="event.stopPropagation();deleteHistoryDay('${d.date}')" style="background:none;border:none;color:var(--text-light);font-size:16px;padding:8px;cursor:pointer;flex-shrink:0;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" title="删除此天记录">🗑️</button>
-    </div>`;
-  }).join('') + '</div>';
-}
-
-function goToDate(date) {
-  autoSave();
-  currentDate = date;
-  loadDayData();
-  updateDateDisplay();
-  renderRecord();
-  switchPage('record');
-}
-
-function deleteHistoryDay(date) {
-  const d = new Date(date + "T00:00:00");
-  const label = (d.getMonth()+1) + "月" + d.getDate() + "日";
-  if (!confirm("确定删除 " + label + " 的饮食记录？")) return;
-  deleteDayRecord(date);
-  // If deleting the currently viewed day, also clear selection
-  if (date === currentDate) {
-    selectedFoods = [];
-    renderRecord();
-  }
-  renderHistory();
-  showToast("已删除 " + label + " 的记录");
-}
-
-// ===========================================================================
-// TOAST
-// ===========================================================================
-function showToast(msg) {
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 1800);
-}
-
-// ===========================================================================
-// USER SYSTEM (Account + Password)
-// ===========================================================================
-const USERS_META_KEY = "foodApp_users";
-const ADMIN_USERNAME = "tabyue";
-let currentUser = null; // { id, username, name, role, pwdHash, createdAt }
-
-// Simple hash (not cryptographic, but sufficient for local-only auth)
-async function hashPwd(pwd) {
-  const enc = new TextEncoder().encode(pwd + "_food_app_salt_2026");
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
-}
-
-function getAllUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_META_KEY)) || []; } catch(e) { return []; }
-}
-function saveAllUsers(users) { localStorage.setItem(USERS_META_KEY, JSON.stringify(users)); }
-function getCurrentUserId() { return localStorage.getItem("foodApp_currentUser") || null; }
-function setCurrentUserId(id) { localStorage.setItem("foodApp_currentUser", id); }
-function clearCurrentUserId() { localStorage.removeItem("foodApp_currentUser"); }
-
-function isAdmin() { return currentUser && currentUser.role === "admin"; }
-
-function updateUserDisplay() {
-  const heroUser = document.getElementById("heroUserName");
-  if (heroUser && currentUser) heroUser.textContent = currentUser.name || currentUser.username;
-}
-
-function userStorageKey(base) {
-  return currentUser ? currentUser.id + "_" + base : base;
+async function goToDate(date){await autoSave();currentDate=date;await loadDayData();updateDateDisplay();renderRecord();switchPage('record');}
+async function deleteHistoryDay(date){
+  const d=new Date(date+"T00:00:00");const label=(d.getMonth()+1)+"月"+d.getDate()+"日";
+  if(!confirm("确定删除 "+label+" 的记录？"))return;
+  await deleteDayFromCloud(date);
+  if(date===currentDate){selectedFoods=[];renderRecord();}
+  renderHistory(); showToast("已删除 "+label+" 的记录");
 }
 
 // ===========================================================================
 // AUTH UI
 // ===========================================================================
-let authMode = "login"; // "login" | "register"
+let authMode = "login";
+function showAuthModal(){updateAuthUI();document.getElementById("authModal").style.display="flex";document.getElementById("authError").style.display="none";document.getElementById("authUsername").value="";document.getElementById("authPassword").value="";document.getElementById("authNickname").value="";document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelector('.tab-bar').style.display='none';}
+function hideAuthModal(){document.getElementById("authModal").style.display="none";document.querySelector('.tab-bar').style.display='flex';document.getElementById('pageRecord').classList.add('active');document.querySelectorAll('.tab-bar-item').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-bar-item')[0].classList.add('active');}
+function toggleAuthMode(){authMode=authMode==="login"?"register":"login";updateAuthUI();document.getElementById("authError").style.display="none";}
+function updateAuthUI(){const il=authMode==="login";document.getElementById("authSubtitle").textContent=il?"登录你的账号":"创建新账号";document.getElementById("authSubmitBtn").textContent=il?"登 录":"注 册";document.getElementById("authToggleText").textContent=il?"没有账号？":"已有账号？";document.getElementById("authToggleBtn").textContent=il?"注册新账号":"返回登录";document.getElementById("authNameRow").style.display=il?"none":"flex";}
+function showAuthError(msg){const el=document.getElementById("authError");el.textContent=msg;el.style.display="block";}
 
-function showAuthModal() {
-  updateAuthUI();
-  document.getElementById("authModal").style.display = "flex";
-  document.getElementById("authError").style.display = "none";
-  document.getElementById("authUsername").value = "";
-  document.getElementById("authPassword").value = "";
-  document.getElementById("authNickname").value = "";
-  // Hide main content
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelector('.tab-bar').style.display = 'none';
+async function submitAuth(){
+  const username=document.getElementById("authUsername").value.trim().toLowerCase();
+  const password=document.getElementById("authPassword").value;
+  if(!username){showAuthError("请输入账号");return;}if(username.length<2){showAuthError("账号至少2个字符");return;}
+  if(!password){showAuthError("请输入密码");return;}if(password.length<6){showAuthError("密码至少6位");return;}
+  const email=username+"@food.local";
+  document.getElementById("authSubmitBtn").disabled=true;document.getElementById("authSubmitBtn").textContent="请稍候...";
+  try{
+    if(authMode==="register"){
+      const {data:signUpData,error:signUpErr}=await sb.auth.signUp({email,password});
+      if(signUpErr){showAuthError(signUpErr.message.includes("already")?"该账号已被注册":signUpErr.message);return;}
+      const uid=signUpData.user.id;const nickname=document.getElementById("authNickname").value.trim()||username;
+      const role=username===ADMIN_USERNAME?"admin":"user";
+      await sb.from("profiles").insert({id:uid,username,display_name:nickname,role,login_count:1,last_login_at:new Date().toISOString()});
+      currentUser=signUpData.user;currentProfile={id:uid,username,display_name:nickname,role,login_count:1};
+      await loginSuccess();showToast("🎉 注册成功，欢迎 "+nickname+"！");
+    } else {
+      const {data:signInData,error:signInErr}=await sb.auth.signInWithPassword({email,password});
+      if(signInErr){showAuthError(signInErr.message.includes("Invalid")?"账号或密码错误":signInErr.message);return;}
+      currentUser=signInData.user;
+      const {data:profile}=await sb.from("profiles").select("*").eq("id",currentUser.id).single();
+      currentProfile=profile;
+      if(profile){await sb.from("profiles").update({login_count:(profile.login_count||0)+1,last_login_at:new Date().toISOString()}).eq("id",currentUser.id);}
+      await loginSuccess();
+    }
+  }catch(e){showAuthError("网络错误，请重试");}
+  finally{document.getElementById("authSubmitBtn").disabled=false;updateAuthUI();}
 }
 
-function hideAuthModal() {
-  document.getElementById("authModal").style.display = "none";
-  document.querySelector('.tab-bar').style.display = 'flex';
-  document.getElementById('pageRecord').classList.add('active');
-  document.querySelectorAll('.tab-bar-item').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-bar-item')[0].classList.add('active');
-}
-
-function toggleAuthMode() {
-  authMode = authMode === "login" ? "register" : "login";
-  updateAuthUI();
-  document.getElementById("authError").style.display = "none";
-}
-
-function updateAuthUI() {
-  const isLogin = authMode === "login";
-  document.getElementById("authSubtitle").textContent = isLogin ? "登录你的账号" : "创建新账号";
-  document.getElementById("authSubmitBtn").textContent = isLogin ? "登 录" : "注 册";
-  document.getElementById("authToggleText").textContent = isLogin ? "没有账号？" : "已有账号？";
-  document.getElementById("authToggleBtn").textContent = isLogin ? "注册新账号" : "返回登录";
-  document.getElementById("authNameRow").style.display = isLogin ? "none" : "flex";
-  document.getElementById("authPassword").setAttribute("autocomplete", isLogin ? "current-password" : "new-password");
-}
-
-function showAuthError(msg) {
-  const el = document.getElementById("authError");
-  el.textContent = msg;
-  el.style.display = "block";
-}
-
-async function submitAuth() {
-  const username = document.getElementById("authUsername").value.trim().toLowerCase();
-  const password = document.getElementById("authPassword").value;
-  if (!username) { showAuthError("请输入账号"); return; }
-  if (username.length < 2) { showAuthError("账号至少2个字符"); return; }
-  if (!password) { showAuthError("请输入密码"); return; }
-  if (password.length < 4) { showAuthError("密码至少4位"); return; }
-
-  const pwdHash = await hashPwd(password);
-  const users = getAllUsers();
-
-  if (authMode === "login") {
-    const user = users.find(u => u.username === username);
-    if (!user) { showAuthError("账号不存在"); return; }
-    if (user.pwdHash !== pwdHash) { showAuthError("密码错误"); return; }
-    // Login success — update login stats
-    user.lastLoginAt = new Date().toISOString();
-    user.loginCount = (user.loginCount || 0) + 1;
-    saveAllUsers(users);
-    currentUser = user;
-    setCurrentUserId(user.id);
-    loginSuccess();
-  } else {
-    // Register
-    if (users.find(u => u.username === username)) { showAuthError("该账号已被注册"); return; }
-    const nickname = document.getElementById("authNickname").value.trim() || username;
-    const isAdminUser = username === ADMIN_USERNAME;
-    const user = {
-      id: "u_" + Date.now() + "_" + Math.random().toString(36).slice(2,6),
-      username,
-      name: nickname,
-      role: isAdminUser ? "admin" : "user",
-      pwdHash,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      loginCount: 1
-    };
-    users.push(user);
-    saveAllUsers(users);
-    currentUser = user;
-    setCurrentUserId(user.id);
-    loginSuccess();
-    showToast("🎉 注册成功，欢迎 " + nickname + "！");
-  }
-}
-
-function loginSuccess() {
-  hideAuthModal();
-  initFoods();
-  loadCustomFoods();
-  loadDayData();
-  updateDateDisplay();
-  updateUserDisplay();
+async function loginSuccess(){
+  hideAuthModal();initFoods();await loadDayData();updateDateDisplay();
+  document.getElementById("heroUserName").textContent=currentProfile?currentProfile.display_name||currentProfile.username:"";
   renderRecord();
 }
 
-function doLogout() {
-  if (!confirm("确定退出登录？")) return;
-  autoSave();
-  currentUser = null;
-  clearCurrentUserId();
-  selectedFoods = [];
-  authMode = "login";
-  showAuthModal();
-}
+async function doLogout(){if(!confirm("确定退出登录？"))return;await autoSave();await sb.auth.signOut();currentUser=null;currentProfile=null;selectedFoods=[];authMode="login";showAuthModal();}
 
 // ===========================================================================
 // PROFILE PAGE
 // ===========================================================================
-function renderProfile() {
-  if (!currentUser) return;
-  document.getElementById("profileAvatar").textContent = (currentUser.name || currentUser.username).slice(0,1).toUpperCase();
-  document.getElementById("profileName").textContent = currentUser.name || currentUser.username;
-  document.getElementById("profileRole").innerHTML = isAdmin()
-    ? '<span style="background:linear-gradient(135deg,#ef4444,#f97316);color:white;padding:2px 10px;border-radius:10px;font-weight:700;">管理员</span>'
-    : '<span style="background:var(--primary-light);color:var(--primary-dark);padding:2px 10px;border-radius:10px;font-weight:700;">普通用户</span>';
-  const records = getAllRecords();
-  const days = Object.keys(records).length;
-  document.getElementById("profileStats").textContent = "已记录 " + days + " 天 · @" + currentUser.username;
-  // Admin panel
-  const ap = document.getElementById("adminPanel");
-  const dar = document.getElementById("deleteAccountRow");
-  if (isAdmin()) {
-    ap.style.display = "block";
-    dar.style.display = "none"; // Admin cannot delete self
-    renderAdminPanel();
-  } else {
-    ap.style.display = "none";
-    dar.style.display = "flex";
-  }
+async function renderProfile(){
+  if(!currentProfile)return;
+  document.getElementById("profileAvatar").textContent=(currentProfile.display_name||currentProfile.username).slice(0,1).toUpperCase();
+  document.getElementById("profileName").textContent=currentProfile.display_name||currentProfile.username;
+  document.getElementById("profileRole").innerHTML=isAdmin()?'<span style="background:linear-gradient(135deg,#ef4444,#f97316);color:white;padding:2px 10px;border-radius:10px;font-weight:700;font-size:10px;">管理员</span>':'<span style="background:var(--primary-light);color:var(--primary-dark);padding:2px 10px;border-radius:10px;font-weight:700;font-size:10px;">普通用户</span>';
+  const recs=await loadAllRecordsFromCloud();const days=Object.keys(recs).length;
+  document.getElementById("profileStats").textContent="已记录 "+days+" 天 · @"+currentProfile.username;
+  document.getElementById("adminPanel").style.display=isAdmin()?"block":"none";
+  document.getElementById("deleteAccountRow").style.display=isAdmin()?"none":"flex";
+  if(isAdmin()) await renderAdminPanel();
 }
 
-function renderAdminPanel() {
-  const users = getAllUsers();
-  const el = document.getElementById("adminUserList");
+async function renderAdminPanel(){
+  const {data:profiles}=await sb.from("profiles").select("*").order("created_at",{ascending:true});
+  if(!profiles)return;
+  const el=document.getElementById("adminUserList");
+  const fmtTime=iso=>{if(!iso)return"从未";const d=new Date(iso);return(d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");};
 
-  const rows = users.map(u => {
-    const isMe = u.id === currentUser.id;
-    const isAdm = u.role === "admin";
-    // Record stats
-    let recCount = 0, totalCal = 0, recDates = [];
-    try {
-      const recs = JSON.parse(localStorage.getItem(u.id + "_dailyFoodRecords") || "{}");
-      recDates = Object.keys(recs).sort();
-      recCount = recDates.length;
-      Object.values(recs).forEach(r => { if (r.totals) totalCal += r.totals.calories; });
-    } catch(e) {}
-    const avgCal = recCount > 0 ? Math.round(totalCal / recCount) : 0;
+  let rows="";
+  for(const u of profiles){
+    const isMe=u.id===currentUser.id;const isAdm=u.role==="admin";
+    let recCount=0,totalCal=0;
+    const {data:recs}=await sb.from("daily_records").select("totals").eq("user_id",u.id);
+    if(recs){recCount=recs.length;recs.forEach(r=>{if(r.totals)totalCal+=r.totals.calories;});}
+    const avgCal=recCount>0?Math.round(totalCal/recCount):0;
 
-    // Dates
-    const fmtTime = (iso) => {
-      if (!iso) return "从未";
-      const d = new Date(iso);
-      return (d.getMonth()+1) + "/" + d.getDate() + " " + d.getHours().toString().padStart(2,"0") + ":" + d.getMinutes().toString().padStart(2,"0");
-    };
-    const createdStr = fmtTime(u.createdAt);
-    const lastLoginStr = fmtTime(u.lastLoginAt);
-    const loginCount = u.loginCount || 0;
-    const firstRec = recDates.length > 0 ? recDates[0] : "-";
-    const lastRec = recDates.length > 0 ? recDates[recDates.length - 1] : "-";
-
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);background:${isMe ? 'var(--primary-light)' : '#f8fafc'};margin-bottom:8px;overflow:hidden;">
+    rows+=`<div style="border:1px solid var(--border);border-radius:var(--radius-sm);background:${isMe?'var(--primary-light)':'#f8fafc'};margin-bottom:8px;overflow:hidden;">
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
-        <div style="width:40px;height:40px;border-radius:50%;background:${isAdm ? 'linear-gradient(135deg,#ef4444,#f97316)' : 'var(--primary)'};display:flex;align-items:center;justify-content:center;font-size:16px;color:white;font-weight:700;flex-shrink:0;">${(u.name||u.username).slice(0,1)}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            ${u.name||u.username}
-            <span style="font-size:10px;color:var(--text-light);font-weight:400;">@${u.username}</span>
-            ${isAdm ? '<span style="font-size:9px;background:#fee2e2;color:#ef4444;padding:1px 6px;border-radius:8px;font-weight:700;">管理员</span>' : ''}
-          </div>
-        </div>
-        ${!isMe && !isAdm ? '<button onclick="adminDeleteUser(\''+u.id+'\')" style="padding:4px 10px;background:none;border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius-xs);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">删除</button>' : ''}
+        <div style="width:40px;height:40px;border-radius:50%;background:${isAdm?'linear-gradient(135deg,#ef4444,#f97316)':'var(--primary)'};display:flex;align-items:center;justify-content:center;font-size:16px;color:white;font-weight:700;flex-shrink:0;">${(u.display_name||u.username).slice(0,1)}</div>
+        <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;">${u.display_name||u.username} <span style="font-size:10px;color:var(--text-light);font-weight:400;">@${u.username}</span> ${isAdm?'<span style="font-size:9px;background:#fee2e2;color:#ef4444;padding:1px 6px;border-radius:8px;font-weight:700;">管理员</span>':''}</div></div>
+        ${!isMe&&!isAdm?'<button onclick="adminDeleteUser(\''+u.id+'\')" style="padding:4px 10px;background:none;border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius-xs);font-size:10px;font-weight:600;cursor:pointer;">删除</button>':''}
       </div>
       <div style="padding:0 14px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;">
-          <div style="font-size:9px;color:var(--text-light);font-weight:600;">注册时间</div>
-          <div style="font-size:12px;font-weight:700;">${createdStr}</div>
-        </div>
-        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;">
-          <div style="font-size:9px;color:var(--text-light);font-weight:600;">最近登录</div>
-          <div style="font-size:12px;font-weight:700;">${lastLoginStr}</div>
-        </div>
-        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;">
-          <div style="font-size:9px;color:var(--text-light);font-weight:600;">登录次数</div>
-          <div style="font-size:12px;font-weight:700;">${loginCount} 次</div>
-        </div>
-        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;">
-          <div style="font-size:9px;color:var(--text-light);font-weight:600;">记录天数</div>
-          <div style="font-size:12px;font-weight:700;">${recCount} 天</div>
-        </div>
-        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;">
-          <div style="font-size:9px;color:var(--text-light);font-weight:600;">日均热量</div>
-          <div style="font-size:12px;font-weight:700;color:${avgCal > 0 ? 'var(--danger)' : 'var(--text-light)'};">${avgCal > 0 ? avgCal + ' kcal' : '-'}</div>
-        </div>
-        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;">
-          <div style="font-size:9px;color:var(--text-light);font-weight:600;">记录区间</div>
-          <div style="font-size:12px;font-weight:700;">${firstRec !== '-' ? firstRec.slice(5) + ' ~ ' + lastRec.slice(5) : '-'}</div>
-        </div>
+        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;"><div style="font-size:9px;color:var(--text-light);font-weight:600;">注册时间</div><div style="font-size:12px;font-weight:700;">${fmtTime(u.created_at)}</div></div>
+        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;"><div style="font-size:9px;color:var(--text-light);font-weight:600;">最近登录</div><div style="font-size:12px;font-weight:700;">${fmtTime(u.last_login_at)}</div></div>
+        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;"><div style="font-size:9px;color:var(--text-light);font-weight:600;">登录次数</div><div style="font-size:12px;font-weight:700;">${u.login_count||0} 次</div></div>
+        <div style="background:white;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid #f1f5f9;"><div style="font-size:9px;color:var(--text-light);font-weight:600;">记录 / 日均热量</div><div style="font-size:12px;font-weight:700;">${recCount}天 / ${avgCal>0?avgCal+'kcal':'-'}</div></div>
       </div>
-      ${!isMe && recCount > 0 ? '<div style="padding:0 14px 12px;"><button onclick="viewUserRecords(\''+u.id+'\',\''+( u.name||u.username )+'\')" style="width:100%;padding:8px;background:var(--info-light);color:var(--info);border:1px solid var(--info);border-radius:var(--radius-xs);font-size:12px;font-weight:700;cursor:pointer;">📋 查看饮食记录明细</button></div>' : ''}
+      ${!isMe&&recCount>0?'<div style="padding:0 14px 12px;"><button onclick="viewUserRecords(\''+u.id+'\',\''+(u.display_name||u.username)+'\')" style="width:100%;padding:8px;background:var(--info-light);color:var(--info);border:1px solid var(--info);border-radius:var(--radius-xs);font-size:12px;font-weight:700;cursor:pointer;">📋 查看饮食记录</button></div>':''}
     </div>`;
-  }).join('');
-
-  el.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:10px;">共 ' + users.length + ' 个注册用户</div>' + rows;
-}
-
-// Admin: view another user's records
-function viewUserRecords(userId, userName) {
-  let recs;
-  try { recs = JSON.parse(localStorage.getItem(userId + "_dailyFoodRecords") || "{}"); } catch(e) { recs = {}; }
-  const dates = Object.keys(recs).sort().reverse();
-  if (!dates.length) { alert("该用户暂无记录"); return; }
-
-  let html = '<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">';
-  html += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;">📋 ' + userName + ' 的饮食记录</div>';
-  dates.forEach(date => {
-    const rec = recs[date];
-    const t = rec.totals || {};
-    const items = rec.items || [];
-    const d = new Date(date + "T00:00:00");
-    const weekdays = ["日","一","二","三","四","五","六"];
-    html += `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;padding:10px 12px;background:#f8fafc;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-size:13px;font-weight:700;">${(d.getMonth()+1)+"/"+ d.getDate()} 周${weekdays[d.getDay()]}</span>
-        <span style="font-size:11px;color:var(--danger);font-weight:700;">${Math.round(t.calories||0)} kcal</span>
-      </div>
-      <div style="display:flex;gap:8px;font-size:10px;color:var(--text-light);margin-bottom:6px;">
-        <span>蛋白 ${(t.protein||0).toFixed(1)}g</span>
-        <span>碳水 ${(t.carbs||0).toFixed(1)}g</span>
-        <span>脂肪 ${(t.fat||0).toFixed(1)}g</span>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;">
-        ${items.map(it => `<span style="font-size:11px;background:white;padding:2px 8px;border-radius:12px;border:1px solid var(--border);">${it.emoji||'🍽️'} ${it.name} ${it.amount}g</span>`).join('')}
-      </div>
-    </div>`;
-  });
-  html += '</div><div style="text-align:center;margin-top:12px;"><button onclick="closeAdminView()" style="padding:10px 32px;background:var(--primary);color:white;border:none;border-radius:var(--radius-xs);font-size:14px;font-weight:700;cursor:pointer;">关闭</button></div>';
-
-  // Show in a modal overlay
-  let overlay = document.getElementById("adminViewOverlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "adminViewOverlay";
-    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;";
-    document.body.appendChild(overlay);
   }
-  overlay.innerHTML = '<div style="background:white;border-radius:var(--radius);padding:20px;width:100%;max-width:480px;max-height:85vh;overflow:hidden;box-shadow:var(--shadow-lg);">' + html + '</div>';
-  overlay.style.display = "flex";
+  el.innerHTML='<div style="font-size:12px;color:var(--text-light);margin-bottom:10px;">共 '+profiles.length+' 个用户</div>'+rows;
 }
 
-function closeAdminView() {
-  const overlay = document.getElementById("adminViewOverlay");
-  if (overlay) overlay.style.display = "none";
+async function adminDeleteUser(userId){
+  if(!confirm("确定删除该用户及其所有数据？"))return;
+  await sb.from("daily_records").delete().eq("user_id",userId);
+  await sb.from("custom_foods").delete().eq("user_id",userId);
+  await sb.from("profiles").delete().eq("id",userId);
+  // Note: can't delete from auth.users via anon key; profile+data deleted is sufficient
+  await renderAdminPanel();showToast("已删除");
 }
 
-function adminDeleteUser(userId) {
-  const users = getAllUsers();
-  const user = users.find(u => u.id === userId);
-  if (!user) return;
-  if (!confirm("确定删除用户「" + (user.name||user.username) + "」及其所有数据？")) return;
-  localStorage.removeItem(userId + "_dailyFoodRecords");
-  localStorage.removeItem(userId + "_customFoodsV3");
-  saveAllUsers(users.filter(u => u.id !== userId));
-  renderAdminPanel();
-  showToast("已删除用户 " + (user.name||user.username));
+async function viewUserRecords(userId,userName){
+  const {data:recs}=await sb.from("daily_records").select("record_date,items,totals").eq("user_id",userId).order("record_date",{ascending:false});
+  if(!recs||!recs.length){alert("暂无记录");return;}
+  let html='<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;"><div style="font-size:14px;font-weight:700;margin-bottom:10px;">📋 '+userName+' 的饮食记录</div>';
+  recs.forEach(rec=>{const t=rec.totals||{};const items=rec.items||[];const d=new Date(rec.record_date+"T00:00:00");const w=["日","一","二","三","四","五","六"];
+    html+=`<div style="border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;padding:10px 12px;background:#f8fafc;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:13px;font-weight:700;">${(d.getMonth()+1)+"/"+d.getDate()} 周${w[d.getDay()]}</span><span style="font-size:11px;color:var(--danger);font-weight:700;">${Math.round(t.calories||0)} kcal</span></div><div style="display:flex;gap:8px;font-size:10px;color:var(--text-light);margin-bottom:6px;"><span>蛋白 ${(t.protein||0).toFixed(1)}g</span><span>碳水 ${(t.carbs||0).toFixed(1)}g</span><span>脂肪 ${(t.fat||0).toFixed(1)}g</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;">${items.map(it=>'<span style="font-size:11px;background:white;padding:2px 8px;border-radius:12px;border:1px solid var(--border);">'+(it.emoji||'🍽️')+' '+it.name+' '+it.amount+'g</span>').join('')}</div></div>`;
+  });
+  html+='</div><div style="text-align:center;margin-top:12px;"><button onclick="closeAdminView()" style="padding:10px 32px;background:var(--primary);color:white;border:none;border-radius:var(--radius-xs);font-size:14px;font-weight:700;cursor:pointer;">关闭</button></div>';
+  let ov=document.getElementById("adminViewOverlay");
+  if(!ov){ov=document.createElement("div");ov.id="adminViewOverlay";ov.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;";document.body.appendChild(ov);}
+  ov.innerHTML='<div style="background:white;border-radius:var(--radius);padding:20px;width:100%;max-width:480px;max-height:85vh;overflow:hidden;box-shadow:var(--shadow-lg);">'+html+'</div>';ov.style.display="flex";
 }
+function closeAdminView(){const ov=document.getElementById("adminViewOverlay");if(ov)ov.style.display="none";}
 
 // ===========================================================================
 // CHANGE PASSWORD
 // ===========================================================================
-function showChangePwd() {
-  document.getElementById("pwdModal").style.display = "flex";
-  document.getElementById("pwdOld").value = "";
-  document.getElementById("pwdNew").value = "";
-  document.getElementById("pwdConfirm").value = "";
-}
-function closePwdModal() { document.getElementById("pwdModal").style.display = "none"; }
-async function confirmChangePwd() {
-  const oldPwd = document.getElementById("pwdOld").value;
-  const newPwd = document.getElementById("pwdNew").value;
-  const confirmPwd = document.getElementById("pwdConfirm").value;
-  if (!oldPwd) { alert("请输入当前密码"); return; }
-  const oldHash = await hashPwd(oldPwd);
-  if (oldHash !== currentUser.pwdHash) { alert("当前密码错误"); return; }
-  if (!newPwd || newPwd.length < 4) { alert("新密码至少4位"); return; }
-  if (newPwd !== confirmPwd) { alert("两次输入的新密码不一致"); return; }
-  const newHash = await hashPwd(newPwd);
-  const users = getAllUsers();
-  const u = users.find(u => u.id === currentUser.id);
-  if (u) { u.pwdHash = newHash; saveAllUsers(users); currentUser.pwdHash = newHash; }
-  closePwdModal();
-  showToast("✅ 密码已修改");
+function showChangePwd(){document.getElementById("pwdModal").style.display="flex";document.getElementById("pwdOld").value="";document.getElementById("pwdNew").value="";document.getElementById("pwdConfirm").value="";}
+function closePwdModal(){document.getElementById("pwdModal").style.display="none";}
+async function confirmChangePwd(){
+  const newPwd=document.getElementById("pwdNew").value;const confirmPwd=document.getElementById("pwdConfirm").value;
+  if(!newPwd||newPwd.length<6){alert("新密码至少6位");return;}if(newPwd!==confirmPwd){alert("两次输入不一致");return;}
+  const {error}=await sb.auth.updateUser({password:newPwd});
+  if(error){alert("修改失败: "+error.message);return;}
+  closePwdModal();showToast("✅ 密码已修改");
 }
 
-function deleteCurrentUser() {
-  if (isAdmin()) { alert("管理员账号不能删除"); return; }
-  if (!confirm("确定注销账号「" + currentUser.username + "」？所有数据将永久删除！")) return;
-  const users = getAllUsers();
-  localStorage.removeItem(getStorageKey());
-  localStorage.removeItem(getCustomKey());
-  saveAllUsers(users.filter(u => u.id !== currentUser.id));
-  currentUser = null;
-  clearCurrentUserId();
-  showAuthModal();
-  showToast("账号已注销");
+async function deleteCurrentUser(){
+  if(isAdmin()){alert("管理员账号不能删除");return;}
+  if(!confirm("确定注销账号？所有数据将永久删除！"))return;
+  await sb.from("daily_records").delete().eq("user_id",currentUser.id);
+  await sb.from("custom_foods").delete().eq("user_id",currentUser.id);
+  await sb.from("profiles").delete().eq("id",currentUser.id);
+  await sb.auth.signOut();currentUser=null;currentProfile=null;authMode="login";showAuthModal();showToast("账号已注销");
 }
 
 // ===========================================================================
 // DATA EXPORT / IMPORT
 // ===========================================================================
-function exportData() {
-  const data = { user: { username: currentUser.username, name: currentUser.name }, records: getAllRecords(), customFoods: JSON.parse(localStorage.getItem(getCustomKey()) || "[]"), exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = "diet_" + currentUser.username + "_" + todayStr() + ".json";
-  a.click(); URL.revokeObjectURL(url);
-  showToast("📦 数据已导出");
+async function exportData(){
+  const records=await loadAllRecordsFromCloud();
+  const data={user:{username:currentProfile.username,name:currentProfile.display_name},records,exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download="diet_"+currentProfile.username+"_"+todayStr()+".json";a.click();URL.revokeObjectURL(url);showToast("📦 数据已导出");
 }
-function importData(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (data.records) localStorage.setItem(getStorageKey(), JSON.stringify(data.records));
-      if (data.customFoods) localStorage.setItem(getCustomKey(), JSON.stringify(data.customFoods));
-      initFoods(); loadCustomFoods(); loadDayData(); renderRecord(); renderProfile();
-      showToast("✅ 数据已导入");
-    } catch(err) { alert("文件格式错误"); }
+async function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(data.records){for(const [date,rec] of Object.entries(data.records)){if(rec.items)await saveDayToCloud(date,rec.items);}}
+      await loadDayData();renderRecord();showToast("✅ 数据已导入");
+    }catch(err){alert("文件格式错误");}
   };
-  reader.readAsText(file); e.target.value = "";
+  reader.readAsText(file);e.target.value="";
 }
+
+// ===========================================================================
+// TOAST
+// ===========================================================================
+function showToast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),1800);}
 
 // ===========================================================================
 // INIT
 // ===========================================================================
-(function initApp() {
-  let users = getAllUsers();
-  const savedId = getCurrentUserId();
-
-  // Force clean: remove any users without pwdHash (old version data)
-  if (users.some(u => !u.pwdHash)) {
-    users = users.filter(u => u.pwdHash);
-    saveAllUsers(users);
-    clearCurrentUserId();
-    // Stay on auth modal (it's already visible by default)
-    if (users.length === 0) { authMode = "register"; updateAuthUI(); }
-    return;
-  }
-
-  if (savedId) {
-    const user = users.find(u => u.id === savedId && u.pwdHash);
-    if (user) {
-      // Valid logged-in user — update stats, hide auth, show app
-      user.lastLoginAt = new Date().toISOString();
-      user.loginCount = (user.loginCount || 0) + 1;
-      saveAllUsers(users);
-      currentUser = user;
-      document.getElementById("authModal").style.display = "none";
-      document.querySelector('.tab-bar').style.display = 'flex';
+(async function initApp(){
+  // Check if already logged in
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&session.user){
+    currentUser=session.user;
+    const {data:profile}=await sb.from("profiles").select("*").eq("id",currentUser.id).single();
+    if(profile){
+      currentProfile=profile;
+      await sb.from("profiles").update({login_count:(profile.login_count||0)+1,last_login_at:new Date().toISOString()}).eq("id",currentUser.id);
+      document.getElementById("authModal").style.display="none";
+      document.querySelector('.tab-bar').style.display='flex';
       document.getElementById('pageRecord').classList.add('active');
-      initFoods();
-      loadCustomFoods();
-      loadDayData();
-      updateDateDisplay();
-      updateUserDisplay();
+      initFoods();await loadDayData();updateDateDisplay();
+      document.getElementById("heroUserName").textContent=profile.display_name||profile.username;
       renderRecord();
       return;
     }
   }
-
-  // Not logged in — auth modal is already visible by default
-  clearCurrentUserId();
-  if (users.length === 0) {
-    authMode = "register";
-    updateAuthUI();
-  }
+  // Not logged in — auth modal is visible by default
 })();
 
-// Enter key to submit auth
-document.getElementById("authPassword").addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); });
-document.getElementById("authUsername").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("authPassword").focus(); });
-document.getElementById("pwdConfirm").addEventListener("keydown", e => { if (e.key === "Enter") confirmChangePwd(); });
-document.addEventListener("visibilitychange", () => { if (document.hidden) autoSave(); });
-window.addEventListener("beforeunload", autoSave);
+document.getElementById("authPassword").addEventListener("keydown",e=>{if(e.key==="Enter")submitAuth();});
+document.getElementById("authUsername").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("authPassword").focus();});
+document.getElementById("pwdConfirm").addEventListener("keydown",e=>{if(e.key==="Enter")confirmChangePwd();});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)autoSave();});
+window.addEventListener("beforeunload",()=>autoSave());
 </script>
 </body>
 </html>

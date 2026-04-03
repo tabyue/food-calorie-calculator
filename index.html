@@ -738,10 +738,15 @@ input[type="number"] { -moz-appearance: textfield; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>if(typeof supabase==='undefined'){document.write('<scr'+'ipt src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/scr'+'ipt>');}</script>
 <script>
 // ===========================================================================
 // SUPABASE INIT
 // ===========================================================================
+if(typeof supabase==='undefined'){
+  document.getElementById("authModal").innerHTML='<div style="text-align:center;color:white;padding:40px;"><div style="font-size:40px;margin-bottom:16px;">⚠️</div><div style="font-size:18px;font-weight:700;margin-bottom:8px;">网络加载失败</div><div style="font-size:14px;opacity:0.8;">请检查网络连接后刷新页面</div><br><button onclick="location.reload()" style="padding:10px 30px;background:white;color:#059669;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">刷新重试</button></div>';
+  throw new Error("Supabase SDK failed to load");
+}
 const SUPABASE_URL = "https://nuxxyvulcpksdgoyqpuc.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHh5dnVsY3Brc2Rnb3lxcHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzg3MzQsImV4cCI6MjA5MDgxNDczNH0.B5tiAjQDA_j9PJi7bPEfDvTcK7XkqURfoXFS1JtLPBA";
 const ADMIN_USERNAME = "tabyue";
@@ -906,7 +911,7 @@ let currentDate = todayStr();
 let currentRange = "7";
 const dailyTarget = { calories:2000, protein:65, carbs:300, fat:60 };
 
-function todayStr() { return new Date().toISOString().slice(0,10); }
+function todayStr() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function formatDate(s) { const d=new Date(s+"T00:00:00"); const w=["日","一","二","三","四","五","六"]; return (d.getMonth()+1)+"月"+d.getDate()+"日 周"+w[d.getDay()]; }
 function shortDate(s) { const d=new Date(s+"T00:00:00"); return (d.getMonth()+1)+"/"+d.getDate(); }
 function isAdmin() { return currentProfile && currentProfile.role === "admin"; }

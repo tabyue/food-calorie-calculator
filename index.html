@@ -338,21 +338,23 @@ body {
 .empty-state .empty-desc { font-size: 12px; color: var(--text-light); }
 
 /* ===== Add Form ===== */
-.add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
+.add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
 .add-form .form-full { grid-column: 1/-1; }
-.form-group { display: flex; flex-direction: column; gap: 3px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
 .form-group label { font-size: 11px; color: var(--text-secondary); font-weight: 700; }
 .form-group input {
-  padding: 9px 10px; border: 2px solid var(--border); border-radius: var(--radius-xs);
+  padding: 10px 12px; border: 2px solid var(--border); border-radius: var(--radius-xs);
   font-size: 16px; outline: none; background: #f8fafc; -webkit-appearance: none;
+  width: 100%; min-width: 0;
 }
 .form-group input:focus { border-color: var(--primary); background: white; }
 .form-group input::placeholder { color: #cbd5e1; }
 .btn-add {
-  padding: 10px; background: linear-gradient(135deg, var(--accent), #d97706);
+  padding: 12px; background: linear-gradient(135deg, var(--accent), #d97706);
   color: white; border: none; border-radius: var(--radius-xs); cursor: pointer;
-  font-size: 14px; font-weight: 700; grid-column: 1/-1;
+  font-size: 15px; font-weight: 700; grid-column: 1/-1;
   box-shadow: 0 2px 8px rgba(245,158,11,0.3); -webkit-appearance: none;
+  margin-top: 4px;
 }
 .btn-add:active { transform: scale(0.98); }
 
@@ -651,37 +653,37 @@ input[type="number"] { -moz-appearance: textfield; }
         <div id="profileAvatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;font-size:24px;color:white;font-weight:800;flex-shrink:0;"></div>
         <div style="flex:1;">
           <div id="profileName" style="font-size:18px;font-weight:700;"></div>
+          <div id="profileRole" style="font-size:11px;margin-top:2px;"></div>
           <div id="profileStats" style="font-size:12px;color:var(--text-light);margin-top:2px;"></div>
         </div>
+        <button onclick="doLogout()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">退出登录</button>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header"><h2><span class="icon icon-orange">🔄</span>切换用户</h2></div>
-      <div id="userList" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="margin-top:12px;display:flex;gap:8px;">
-        <button class="btn-save" onclick="showNewUserDialog()" style="flex:1;">➕ 新建用户</button>
-      </div>
+    <!-- 管理员专属面板 -->
+    <div class="card" id="adminPanel" style="display:none;">
+      <div class="card-header"><h2><span class="icon icon-red">🛡️</span>管理员面板</h2></div>
+      <div id="adminUserList"></div>
     </div>
 
     <div class="card">
       <div class="card-header"><h2><span class="icon icon-purple">⚙️</span>设置</h2></div>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-          <div><div style="font-size:14px;font-weight:600;">修改昵称</div><div style="font-size:11px;color:var(--text-light);">更改当前用户的显示名称</div></div>
-          <button onclick="renameCurrentUser()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">修改</button>
+      <div style="display:flex;flex-direction:column;gap:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:14px;font-weight:600;">修改密码</div><div style="font-size:11px;color:var(--text-light);">更改当前账号的密码</div></div>
+          <button onclick="showChangePwd()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">修改</button>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-          <div><div style="font-size:14px;font-weight:600;">导出数据</div><div style="font-size:11px;color:var(--text-light);">将当前用户数据导出为 JSON 文件</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:14px;font-weight:600;">导出数据</div><div style="font-size:11px;color:var(--text-light);">备份为 JSON 文件</div></div>
           <button onclick="exportData()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">导出</button>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-          <div><div style="font-size:14px;font-weight:600;">导入数据</div><div style="font-size:11px;color:var(--text-light);">从 JSON 文件恢复数据</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:14px;font-weight:600;">导入数据</div><div style="font-size:11px;color:var(--text-light);">从 JSON 文件恢复</div></div>
           <button onclick="document.getElementById('importFile').click()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">导入</button>
           <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">
-          <div><div style="font-size:14px;font-weight:600;color:var(--danger);">删除用户</div><div style="font-size:11px;color:var(--text-light);">永久删除当前用户及所有数据</div></div>
+        <div id="deleteAccountRow" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
+          <div><div style="font-size:14px;font-weight:600;color:var(--danger);">注销账号</div><div style="font-size:11px;color:var(--text-light);">永久删除账号及所有数据</div></div>
           <button onclick="deleteCurrentUser()" style="padding:7px 16px;background:var(--danger-light);border:2px solid var(--danger);border-radius:var(--radius-xs);font-size:12px;font-weight:700;color:var(--danger);cursor:pointer;">删除</button>
         </div>
       </div>
@@ -690,17 +692,41 @@ input[type="number"] { -moz-appearance: textfield; }
   </div>
 </div>
 
-<!-- 用户设置弹窗 -->
-<div id="userModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;">
-  <div style="background:white;border-radius:var(--radius);padding:28px;width:100%;max-width:360px;box-shadow:var(--shadow-lg);">
+<!-- ==================== 登录/注册弹窗 ==================== -->
+<div id="authModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:linear-gradient(135deg,#059669,#10b981);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:var(--radius);padding:28px;width:100%;max-width:380px;box-shadow:var(--shadow-lg);">
     <div style="text-align:center;margin-bottom:20px;">
-      <div style="font-size:40px;margin-bottom:8px;">👋</div>
-      <div id="modalTitle" style="font-size:20px;font-weight:800;color:var(--text);"></div>
-      <div id="modalDesc" style="font-size:13px;color:var(--text-light);margin-top:4px;"></div>
+      <div style="font-size:44px;margin-bottom:6px;">🍱</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);">每日饮食记录</div>
+      <div id="authSubtitle" style="font-size:13px;color:var(--text-light);margin-top:4px;">登录你的账号</div>
     </div>
-    <input type="text" id="modalInput" placeholder="输入昵称" maxlength="20" style="width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:16px;outline:none;text-align:center;font-weight:600;-webkit-appearance:none;margin-bottom:16px;" enterkeyhint="done">
-    <button id="modalBtn" onclick="confirmUserModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;-webkit-appearance:none;">确认</button>
-    <button id="modalCancel" onclick="closeUserModal()" style="width:100%;padding:10px;background:none;border:none;color:var(--text-light);font-size:13px;cursor:pointer;margin-top:8px;display:none;">取消</button>
+    <div id="authError" style="display:none;background:var(--danger-light);color:var(--danger);padding:8px 12px;border-radius:var(--radius-xs);font-size:12px;font-weight:600;margin-bottom:12px;text-align:center;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="form-group"><label>账号</label><input type="text" id="authUsername" placeholder="输入账号" autocomplete="username" style="padding:11px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:16px;outline:none;-webkit-appearance:none;width:100%;"></div>
+      <div class="form-group"><label>密码</label><input type="password" id="authPassword" placeholder="输入密码" autocomplete="current-password" style="padding:11px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:16px;outline:none;-webkit-appearance:none;width:100%;" enterkeyhint="done"></div>
+      <div id="authNameRow" class="form-group" style="display:none;"><label>昵称（选填）</label><input type="text" id="authNickname" placeholder="不填则用账号名" style="padding:11px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:16px;outline:none;-webkit-appearance:none;width:100%;"></div>
+    </div>
+    <button id="authSubmitBtn" onclick="submitAuth()" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:700;cursor:pointer;-webkit-appearance:none;margin-top:16px;">登 录</button>
+    <div style="text-align:center;margin-top:14px;">
+      <span id="authToggleText" style="font-size:13px;color:var(--text-light);">没有账号？</span>
+      <button id="authToggleBtn" onclick="toggleAuthMode()" style="background:none;border:none;color:var(--primary);font-size:13px;font-weight:700;cursor:pointer;">注册新账号</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用弹窗（修改密码等） -->
+<div id="pwdModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:var(--radius);padding:24px;width:100%;max-width:340px;box-shadow:var(--shadow-lg);">
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px;text-align:center;">🔒 修改密码</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="form-group"><label>当前密码</label><input type="password" id="pwdOld" placeholder="输入当前密码" style="padding:10px 12px;border:2px solid var(--border);border-radius:var(--radius-xs);font-size:16px;outline:none;-webkit-appearance:none;width:100%;"></div>
+      <div class="form-group"><label>新密码</label><input type="password" id="pwdNew" placeholder="输入新密码" style="padding:10px 12px;border:2px solid var(--border);border-radius:var(--radius-xs);font-size:16px;outline:none;-webkit-appearance:none;width:100%;"></div>
+      <div class="form-group"><label>确认新密码</label><input type="password" id="pwdConfirm" placeholder="再次输入新密码" style="padding:10px 12px;border:2px solid var(--border);border-radius:var(--radius-xs);font-size:16px;outline:none;-webkit-appearance:none;width:100%;" enterkeyhint="done"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button onclick="closePwdModal()" style="flex:1;padding:10px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:14px;font-weight:600;cursor:pointer;">取消</button>
+      <button onclick="confirmChangePwd()" style="flex:1;padding:10px;background:var(--primary);color:white;border:none;border-radius:var(--radius-xs);font-size:14px;font-weight:700;cursor:pointer;">确认</button>
+    </div>
   </div>
 </div>
 
@@ -879,35 +905,11 @@ function setCurrentUserId(id) {
   localStorage.setItem("foodApp_currentUser", id);
 }
 
-function createUser(name) {
-  const users = getAllUsers();
-  const id = "u_" + Date.now() + "_" + Math.random().toString(36).slice(2,6);
-  const user = { id, name, createdAt: new Date().toISOString() };
-  users.push(user);
-  saveAllUsers(users);
-  return user;
-}
-
-function switchUser(userId) {
-  autoSave();
-  const users = getAllUsers();
-  const user = users.find(u => u.id === userId);
-  if (!user) return;
-  currentUser = user;
-  setCurrentUserId(userId);
-  // Reinit with new user's data
-  initFoods();
-  loadCustomFoods();
-  loadDayData();
-  updateDateDisplay();
-  updateUserDisplay();
-  renderRecord();
-}
+function clearCurrentUserId() { localStorage.removeItem("foodApp_currentUser"); }
 
 function updateUserDisplay() {
-  // Show current user name in hero area
   const heroUser = document.getElementById("heroUserName");
-  if (heroUser && currentUser) heroUser.textContent = currentUser.name;
+  if (heroUser && currentUser) heroUser.textContent = currentUser.name || currentUser.username;
 }
 
 function userStorageKey(base) {
@@ -1492,84 +1494,256 @@ function showToast(msg) {
 }
 
 // ===========================================================================
+// USER SYSTEM (Account + Password)
+// ===========================================================================
+const USERS_META_KEY = "foodApp_users";
+const ADMIN_USERNAME = "tabyue";
+let currentUser = null; // { id, username, name, role, pwdHash, createdAt }
+
+// Simple hash (not cryptographic, but sufficient for local-only auth)
+async function hashPwd(pwd) {
+  const enc = new TextEncoder().encode(pwd + "_food_app_salt_2026");
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+function getAllUsers() {
+  try { return JSON.parse(localStorage.getItem(USERS_META_KEY)) || []; } catch(e) { return []; }
+}
+function saveAllUsers(users) { localStorage.setItem(USERS_META_KEY, JSON.stringify(users)); }
+function getCurrentUserId() { return localStorage.getItem("foodApp_currentUser") || null; }
+function setCurrentUserId(id) { localStorage.setItem("foodApp_currentUser", id); }
+function clearCurrentUserId() { localStorage.removeItem("foodApp_currentUser"); }
+
+function isAdmin() { return currentUser && currentUser.role === "admin"; }
+
+function updateUserDisplay() {
+  const heroUser = document.getElementById("heroUserName");
+  if (heroUser && currentUser) heroUser.textContent = currentUser.name || currentUser.username;
+}
+
+function userStorageKey(base) {
+  return currentUser ? currentUser.id + "_" + base : base;
+}
+
+// ===========================================================================
+// AUTH UI
+// ===========================================================================
+let authMode = "login"; // "login" | "register"
+
+function showAuthModal() {
+  authMode = "login";
+  updateAuthUI();
+  document.getElementById("authModal").style.display = "flex";
+  document.getElementById("authError").style.display = "none";
+  document.getElementById("authUsername").value = "";
+  document.getElementById("authPassword").value = "";
+  document.getElementById("authNickname").value = "";
+  // Hide main content
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab-bar').style.display = 'none';
+}
+
+function hideAuthModal() {
+  document.getElementById("authModal").style.display = "none";
+  document.querySelector('.tab-bar').style.display = 'flex';
+  document.getElementById('pageRecord').classList.add('active');
+  document.querySelectorAll('.tab-bar-item').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-bar-item')[0].classList.add('active');
+}
+
+function toggleAuthMode() {
+  authMode = authMode === "login" ? "register" : "login";
+  updateAuthUI();
+  document.getElementById("authError").style.display = "none";
+}
+
+function updateAuthUI() {
+  const isLogin = authMode === "login";
+  document.getElementById("authSubtitle").textContent = isLogin ? "登录你的账号" : "创建新账号";
+  document.getElementById("authSubmitBtn").textContent = isLogin ? "登 录" : "注 册";
+  document.getElementById("authToggleText").textContent = isLogin ? "没有账号？" : "已有账号？";
+  document.getElementById("authToggleBtn").textContent = isLogin ? "注册新账号" : "返回登录";
+  document.getElementById("authNameRow").style.display = isLogin ? "none" : "flex";
+  document.getElementById("authPassword").setAttribute("autocomplete", isLogin ? "current-password" : "new-password");
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById("authError");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+async function submitAuth() {
+  const username = document.getElementById("authUsername").value.trim().toLowerCase();
+  const password = document.getElementById("authPassword").value;
+  if (!username) { showAuthError("请输入账号"); return; }
+  if (username.length < 2) { showAuthError("账号至少2个字符"); return; }
+  if (!password) { showAuthError("请输入密码"); return; }
+  if (password.length < 4) { showAuthError("密码至少4位"); return; }
+
+  const pwdHash = await hashPwd(password);
+  const users = getAllUsers();
+
+  if (authMode === "login") {
+    const user = users.find(u => u.username === username);
+    if (!user) { showAuthError("账号不存在"); return; }
+    if (user.pwdHash !== pwdHash) { showAuthError("密码错误"); return; }
+    // Login success
+    currentUser = user;
+    setCurrentUserId(user.id);
+    loginSuccess();
+  } else {
+    // Register
+    if (users.find(u => u.username === username)) { showAuthError("该账号已被注册"); return; }
+    const nickname = document.getElementById("authNickname").value.trim() || username;
+    const isAdminUser = username === ADMIN_USERNAME;
+    const user = {
+      id: "u_" + Date.now() + "_" + Math.random().toString(36).slice(2,6),
+      username,
+      name: nickname,
+      role: isAdminUser ? "admin" : "user",
+      pwdHash,
+      createdAt: new Date().toISOString()
+    };
+    users.push(user);
+    saveAllUsers(users);
+    currentUser = user;
+    setCurrentUserId(user.id);
+    loginSuccess();
+    showToast("🎉 注册成功，欢迎 " + nickname + "！");
+  }
+}
+
+function loginSuccess() {
+  hideAuthModal();
+  initFoods();
+  loadCustomFoods();
+  loadDayData();
+  updateDateDisplay();
+  updateUserDisplay();
+  renderRecord();
+}
+
+function doLogout() {
+  if (!confirm("确定退出登录？")) return;
+  autoSave();
+  currentUser = null;
+  clearCurrentUserId();
+  selectedFoods = [];
+  showAuthModal();
+}
+
+// ===========================================================================
 // PROFILE PAGE
 // ===========================================================================
 function renderProfile() {
   if (!currentUser) return;
-  document.getElementById("profileAvatar").textContent = currentUser.name.slice(0,1).toUpperCase();
-  document.getElementById("profileName").textContent = currentUser.name;
+  document.getElementById("profileAvatar").textContent = (currentUser.name || currentUser.username).slice(0,1).toUpperCase();
+  document.getElementById("profileName").textContent = currentUser.name || currentUser.username;
+  document.getElementById("profileRole").innerHTML = isAdmin()
+    ? '<span style="background:linear-gradient(135deg,#ef4444,#f97316);color:white;padding:2px 10px;border-radius:10px;font-weight:700;">管理员</span>'
+    : '<span style="background:var(--primary-light);color:var(--primary-dark);padding:2px 10px;border-radius:10px;font-weight:700;">普通用户</span>';
   const records = getAllRecords();
   const days = Object.keys(records).length;
-  const created = new Date(currentUser.createdAt);
-  document.getElementById("profileStats").textContent = "已记录 " + days + " 天 · 创建于 " + (created.getMonth()+1) + "/" + created.getDate();
-  // User list
+  document.getElementById("profileStats").textContent = "已记录 " + days + " 天 · @" + currentUser.username;
+  // Admin panel
+  const ap = document.getElementById("adminPanel");
+  const dar = document.getElementById("deleteAccountRow");
+  if (isAdmin()) {
+    ap.style.display = "block";
+    dar.style.display = "none"; // Admin cannot delete self
+    renderAdminPanel();
+  } else {
+    ap.style.display = "none";
+    dar.style.display = "flex";
+  }
+}
+
+function renderAdminPanel() {
   const users = getAllUsers();
-  const el = document.getElementById("userList");
-  el.innerHTML = users.map(u => {
-    const isCurrent = u.id === currentUser.id;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:2px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'};background:${isCurrent ? 'var(--primary-light)' : 'white'};cursor:pointer;" onclick="${isCurrent ? '' : "switchUser('"+u.id+"')"}">
-      <div style="width:36px;height:36px;border-radius:50%;background:${isCurrent ? 'var(--primary)' : '#e2e8f0'};display:flex;align-items:center;justify-content:center;font-size:14px;color:${isCurrent ? 'white' : 'var(--text-secondary)'};font-weight:700;">${u.name.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:600;">${u.name}</div></div>
-      ${isCurrent ? '<div style="font-size:11px;color:var(--primary);font-weight:700;background:white;padding:2px 8px;border-radius:10px;">当前</div>' : '<div style="font-size:11px;color:var(--text-light);">切换</div>'}
-    </div>`;
-  }).join('');
+  const el = document.getElementById("adminUserList");
+  el.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:10px;">共 ' + users.length + ' 个用户</div>' +
+    users.map(u => {
+      const isMe = u.id === currentUser.id;
+      const isAdm = u.role === "admin";
+      // Get record count for this user
+      let recCount = 0;
+      try { const recs = JSON.parse(localStorage.getItem(u.id + "_dailyFoodRecords") || "{}"); recCount = Object.keys(recs).length; } catch(e) {}
+      const created = new Date(u.createdAt);
+      const dateStr = created.getFullYear() + "/" + (created.getMonth()+1) + "/" + created.getDate();
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:${isMe ? 'var(--primary-light)' : '#f8fafc'};margin-bottom:6px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:${isAdm ? 'linear-gradient(135deg,#ef4444,#f97316)' : 'var(--primary)'};display:flex;align-items:center;justify-content:center;font-size:14px;color:white;font-weight:700;flex-shrink:0;">${(u.name||u.username).slice(0,1)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;">${u.name||u.username} <span style="font-size:10px;color:var(--text-light);font-weight:400;">@${u.username}</span></div>
+          <div style="font-size:10px;color:var(--text-light);">记录 ${recCount} 天 · 注册于 ${dateStr}</div>
+        </div>
+        ${isAdm ? '<span style="font-size:10px;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:8px;font-weight:700;">管理员</span>' : ''}
+        ${!isMe && !isAdm ? '<button onclick="adminDeleteUser(\''+u.id+'\')" style="padding:4px 10px;background:none;border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius-xs);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;">删除</button>' : ''}
+      </div>`;
+    }).join('');
+}
+
+function adminDeleteUser(userId) {
+  const users = getAllUsers();
+  const user = users.find(u => u.id === userId);
+  if (!user) return;
+  if (!confirm("确定删除用户「" + (user.name||user.username) + "」及其所有数据？")) return;
+  localStorage.removeItem(userId + "_dailyFoodRecords");
+  localStorage.removeItem(userId + "_customFoodsV3");
+  saveAllUsers(users.filter(u => u.id !== userId));
+  renderAdminPanel();
+  showToast("已删除用户 " + (user.name||user.username));
 }
 
 // ===========================================================================
-// USER MODAL
+// CHANGE PASSWORD
 // ===========================================================================
-let modalMode = "new"; // "new" | "rename" | "first"
-function showUserModal(mode, title, desc, cancelable) {
-  modalMode = mode;
-  document.getElementById("modalTitle").textContent = title;
-  document.getElementById("modalDesc").textContent = desc;
-  document.getElementById("modalInput").value = "";
-  document.getElementById("modalCancel").style.display = cancelable ? "block" : "none";
-  const m = document.getElementById("userModal");
-  m.style.display = "flex";
-  setTimeout(() => document.getElementById("modalInput").focus(), 100);
+function showChangePwd() {
+  document.getElementById("pwdModal").style.display = "flex";
+  document.getElementById("pwdOld").value = "";
+  document.getElementById("pwdNew").value = "";
+  document.getElementById("pwdConfirm").value = "";
 }
-function closeUserModal() { document.getElementById("userModal").style.display = "none"; }
-function showNewUserDialog() { showUserModal("new", "新建用户", "为新用户取一个昵称", true); }
-function confirmUserModal() {
-  const name = document.getElementById("modalInput").value.trim();
-  if (!name) { alert("请输入昵称"); return; }
-  if (modalMode === "first" || modalMode === "new") {
-    autoSave();
-    const user = createUser(name);
-    switchUser(user.id);
-    showToast("🎉 欢迎，" + name + "！");
-  } else if (modalMode === "rename") {
-    const users = getAllUsers();
-    const u = users.find(u => u.id === currentUser.id);
-    if (u) { u.name = name; saveAllUsers(users); currentUser.name = name; updateUserDisplay(); renderProfile(); showToast("✅ 昵称已修改"); }
-  }
-  closeUserModal();
-}
-function renameCurrentUser() { showUserModal("rename", "修改昵称", "输入新的昵称", true); }
-function deleteCurrentUser() {
+function closePwdModal() { document.getElementById("pwdModal").style.display = "none"; }
+async function confirmChangePwd() {
+  const oldPwd = document.getElementById("pwdOld").value;
+  const newPwd = document.getElementById("pwdNew").value;
+  const confirmPwd = document.getElementById("pwdConfirm").value;
+  if (!oldPwd) { alert("请输入当前密码"); return; }
+  const oldHash = await hashPwd(oldPwd);
+  if (oldHash !== currentUser.pwdHash) { alert("当前密码错误"); return; }
+  if (!newPwd || newPwd.length < 4) { alert("新密码至少4位"); return; }
+  if (newPwd !== confirmPwd) { alert("两次输入的新密码不一致"); return; }
+  const newHash = await hashPwd(newPwd);
   const users = getAllUsers();
-  if (users.length <= 1) { alert("至少保留一个用户"); return; }
-  if (!confirm("确定删除用户「" + currentUser.name + "」及其所有数据？此操作不可恢复！")) return;
-  // Remove storage
+  const u = users.find(u => u.id === currentUser.id);
+  if (u) { u.pwdHash = newHash; saveAllUsers(users); currentUser.pwdHash = newHash; }
+  closePwdModal();
+  showToast("✅ 密码已修改");
+}
+
+function deleteCurrentUser() {
+  if (isAdmin()) { alert("管理员账号不能删除"); return; }
+  if (!confirm("确定注销账号「" + currentUser.username + "」？所有数据将永久删除！")) return;
+  const users = getAllUsers();
   localStorage.removeItem(getStorageKey());
   localStorage.removeItem(getCustomKey());
-  const newUsers = users.filter(u => u.id !== currentUser.id);
-  saveAllUsers(newUsers);
-  switchUser(newUsers[0].id);
-  showToast("已删除");
-  renderProfile();
+  saveAllUsers(users.filter(u => u.id !== currentUser.id));
+  currentUser = null;
+  clearCurrentUserId();
+  showAuthModal();
+  showToast("账号已注销");
 }
 
 // ===========================================================================
 // DATA EXPORT / IMPORT
 // ===========================================================================
 function exportData() {
-  const data = { user: currentUser, records: getAllRecords(), customFoods: JSON.parse(localStorage.getItem(getCustomKey()) || "[]"), exportedAt: new Date().toISOString() };
+  const data = { user: { username: currentUser.username, name: currentUser.name }, records: getAllRecords(), customFoods: JSON.parse(localStorage.getItem(getCustomKey()) || "[]"), exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "diet_" + currentUser.name + "_" + todayStr() + ".json";
+  const a = document.createElement("a"); a.href = url; a.download = "diet_" + currentUser.username + "_" + todayStr() + ".json";
   a.click(); URL.revokeObjectURL(url);
   showToast("📦 数据已导出");
 }
@@ -1579,14 +1753,13 @@ function importData(e) {
   reader.onload = function(ev) {
     try {
       const data = JSON.parse(ev.target.result);
-      if (data.records) { localStorage.setItem(getStorageKey(), JSON.stringify(data.records)); }
-      if (data.customFoods) { localStorage.setItem(getCustomKey(), JSON.stringify(data.customFoods)); }
+      if (data.records) localStorage.setItem(getStorageKey(), JSON.stringify(data.records));
+      if (data.customFoods) localStorage.setItem(getCustomKey(), JSON.stringify(data.customFoods));
       initFoods(); loadCustomFoods(); loadDayData(); renderRecord(); renderProfile();
       showToast("✅ 数据已导入");
     } catch(err) { alert("文件格式错误"); }
   };
-  reader.readAsText(file);
-  e.target.value = "";
+  reader.readAsText(file); e.target.value = "";
 }
 
 // ===========================================================================
@@ -1595,35 +1768,38 @@ function importData(e) {
 (function initApp() {
   const users = getAllUsers();
   const savedId = getCurrentUserId();
+
+  // Check if admin account exists, if not, first run
+  const adminExists = users.find(u => u.username === ADMIN_USERNAME);
+
+  if (savedId) {
+    const user = users.find(u => u.id === savedId);
+    if (user) {
+      currentUser = user;
+      initFoods();
+      loadCustomFoods();
+      loadDayData();
+      updateDateDisplay();
+      updateUserDisplay();
+      renderRecord();
+      return;
+    }
+  }
+  // Not logged in — show auth
+  showAuthModal();
+  // If first run, default to register mode
   if (users.length === 0) {
-    // First time — show welcome modal
-    const defaultUser = createUser("默认用户");
-    currentUser = defaultUser;
-    setCurrentUserId(defaultUser.id);
-    initFoods();
-    loadCustomFoods();
-    loadDayData();
-    updateDateDisplay();
-    updateUserDisplay();
-    renderRecord();
-    // Show rename dialog
-    setTimeout(() => showUserModal("rename", "欢迎使用 🍱", "给自己取一个昵称吧", false), 300);
-  } else {
-    const user = users.find(u => u.id === savedId) || users[0];
-    currentUser = user;
-    setCurrentUserId(user.id);
-    initFoods();
-    loadCustomFoods();
-    loadDayData();
-    updateDateDisplay();
-    updateUserDisplay();
-    renderRecord();
+    authMode = "register";
+    updateAuthUI();
   }
 })();
 
+// Enter key to submit auth
+document.getElementById("authPassword").addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); });
+document.getElementById("authUsername").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("authPassword").focus(); });
+document.getElementById("pwdConfirm").addEventListener("keydown", e => { if (e.key === "Enter") confirmChangePwd(); });
 document.addEventListener("visibilitychange", () => { if (document.hidden) autoSave(); });
 window.addEventListener("beforeunload", autoSave);
-document.getElementById("modalInput").addEventListener("keydown", e => { if (e.key === "Enter") confirmUserModal(); });
 </script>
 </body>
 </html>

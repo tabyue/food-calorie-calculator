@@ -1766,15 +1766,20 @@ function importData(e) {
 // INIT
 // ===========================================================================
 (function initApp() {
-  const users = getAllUsers();
+  let users = getAllUsers();
   const savedId = getCurrentUserId();
 
-  // Check if admin account exists, if not, first run
-  const adminExists = users.find(u => u.username === ADMIN_USERNAME);
+  // Clean up old users without pwdHash (from previous version)
+  const oldUsers = users.filter(u => !u.pwdHash);
+  if (oldUsers.length > 0) {
+    users = users.filter(u => u.pwdHash);
+    saveAllUsers(users);
+    clearCurrentUserId();
+  }
 
-  if (savedId) {
+  if (!oldUsers.length && savedId) {
     const user = users.find(u => u.id === savedId);
-    if (user) {
+    if (user && user.pwdHash) {
       currentUser = user;
       initFoods();
       loadCustomFoods();

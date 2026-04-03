@@ -527,7 +527,7 @@ input[type="number"] { -moz-appearance: textfield; }
 <body>
 
 <!-- ==================== PAGE: 记录 ==================== -->
-<div class="page active" id="pageRecord">
+<div class="page" id="pageRecord">
   <div class="hero">
     <h1>🍱 每日饮食记录</h1>
     <p>记录饮食 · 掌控营养 · 吃得明白 · <span id="heroUserName" style="font-weight:700;"></span></p>
@@ -693,7 +693,7 @@ input[type="number"] { -moz-appearance: textfield; }
 </div>
 
 <!-- ==================== 登录/注册弹窗 ==================== -->
-<div id="authModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:linear-gradient(135deg,#059669,#10b981);align-items:center;justify-content:center;padding:20px;">
+<div id="authModal" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;padding:20px;">
   <div style="background:white;border-radius:var(--radius);padding:28px;width:100%;max-width:380px;box-shadow:var(--shadow-lg);">
     <div style="text-align:center;margin-bottom:20px;">
       <div style="font-size:44px;margin-bottom:6px;">🍱</div>
@@ -731,7 +731,7 @@ input[type="number"] { -moz-appearance: textfield; }
 </div>
 
 <!-- Tab Bar -->
-<div class="tab-bar">
+<div class="tab-bar" style="display:none;">
   <button class="tab-bar-item active" onclick="switchPage('record')"><span class="tab-icon">🍱</span>记录</button>
   <button class="tab-bar-item" onclick="switchPage('history')"><span class="tab-icon">📈</span>历史</button>
   <button class="tab-bar-item" onclick="switchPage('profile')"><span class="tab-icon">👤</span>我的</button>
@@ -1532,7 +1532,6 @@ function userStorageKey(base) {
 let authMode = "login"; // "login" | "register"
 
 function showAuthModal() {
-  authMode = "login";
   updateAuthUI();
   document.getElementById("authModal").style.display = "flex";
   document.getElementById("authError").style.display = "none";
@@ -1631,6 +1630,7 @@ function doLogout() {
   currentUser = null;
   clearCurrentUserId();
   selectedFoods = [];
+  authMode = "login";
   showAuthModal();
 }
 
@@ -1769,18 +1769,24 @@ function importData(e) {
   let users = getAllUsers();
   const savedId = getCurrentUserId();
 
-  // Clean up old users without pwdHash (from previous version)
-  const oldUsers = users.filter(u => !u.pwdHash);
-  if (oldUsers.length > 0) {
+  // Force clean: remove any users without pwdHash (old version data)
+  if (users.some(u => !u.pwdHash)) {
     users = users.filter(u => u.pwdHash);
     saveAllUsers(users);
     clearCurrentUserId();
+    // Stay on auth modal (it's already visible by default)
+    if (users.length === 0) { authMode = "register"; updateAuthUI(); }
+    return;
   }
 
-  if (!oldUsers.length && savedId) {
-    const user = users.find(u => u.id === savedId);
-    if (user && user.pwdHash) {
+  if (savedId) {
+    const user = users.find(u => u.id === savedId && u.pwdHash);
+    if (user) {
+      // Valid logged-in user — hide auth, show app
       currentUser = user;
+      document.getElementById("authModal").style.display = "none";
+      document.querySelector('.tab-bar').style.display = 'flex';
+      document.getElementById('pageRecord').classList.add('active');
       initFoods();
       loadCustomFoods();
       loadDayData();
@@ -1790,9 +1796,9 @@ function importData(e) {
       return;
     }
   }
-  // Not logged in — show auth
-  showAuthModal();
-  // If first run, default to register mode
+
+  // Not logged in — auth modal is already visible by default
+  clearCurrentUserId();
   if (users.length === 0) {
     authMode = "register";
     updateAuthUI();

@@ -884,39 +884,6 @@ const foodDatabase = {
 };
 
 // ===========================================================================
-// USER SYSTEM
-// ===========================================================================
-const USERS_META_KEY = "foodApp_users";
-let currentUser = null; // { id, name, createdAt }
-
-function getAllUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_META_KEY)) || []; } catch(e) { return []; }
-}
-
-function saveAllUsers(users) {
-  localStorage.setItem(USERS_META_KEY, JSON.stringify(users));
-}
-
-function getCurrentUserId() {
-  return localStorage.getItem("foodApp_currentUser") || null;
-}
-
-function setCurrentUserId(id) {
-  localStorage.setItem("foodApp_currentUser", id);
-}
-
-function clearCurrentUserId() { localStorage.removeItem("foodApp_currentUser"); }
-
-function updateUserDisplay() {
-  const heroUser = document.getElementById("heroUserName");
-  if (heroUser && currentUser) heroUser.textContent = currentUser.name || currentUser.username;
-}
-
-function userStorageKey(base) {
-  return currentUser ? currentUser.id + "_" + base : base;
-}
-
-// ===========================================================================
 // STATE
 // ===========================================================================
 let allFoods = [];

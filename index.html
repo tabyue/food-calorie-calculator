@@ -1003,8 +1003,8 @@ function updateDateDisplay() {
 }
 async function changeDate(delta) {
   await autoSave();
-  const d=new Date(currentDate+"T00:00:00"); d.setDate(d.getDate()+delta);
-  currentDate=d.toISOString().slice(0,10);
+  const d=new Date(currentDate+"T12:00:00"); d.setDate(d.getDate()+delta);
+  currentDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   await loadDayData(); updateDateDisplay(); renderRecord();
 }
 function openDatePicker() { const p=document.getElementById("datePicker"); p.value=currentDate; p.showPicker?p.showPicker():p.click(); }
@@ -1098,7 +1098,14 @@ function renderRecord(){renderCategoryTabs();renderFoodGrid();renderSelectedList
 // HISTORY PAGE
 // ===========================================================================
 function setRange(r){currentRange=r;document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));event.target.classList.add('active');renderHistory();}
-function getDateRange(days){const dates=[];const today=new Date();for(let i=days-1;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);dates.push(d.toISOString().slice(0,10));}return dates;}
+function getDateRange(days){
+  const dates=[];const today=new Date();
+  for(let i=days-1;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+  }
+  return dates;
+}
 
 async function renderHistory(){
   const days=parseInt(currentRange);const dates=getDateRange(days);const records=await loadAllRecordsFromCloud();

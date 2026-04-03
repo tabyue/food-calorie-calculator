@@ -2,12 +2,13 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
 <title>每日饮食热量计算器</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍱</text></svg>">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
   :root {
     --primary: #10b981;
     --primary-light: #d1fae5;
@@ -33,23 +34,34 @@
     --radius-sm: 10px;
     --radius-xs: 6px;
     --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
     background: var(--bg);
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-bottom: var(--safe-bottom);
   }
 
   /* ===== Header ===== */
   .hero {
     background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
     padding: 48px 20px 60px;
+    padding-top: calc(48px + var(--safe-top));
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -63,16 +75,10 @@
     width: 200%;
     height: 200%;
     background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%);
-    animation: heroGlow 8s ease-in-out infinite alternate;
-  }
-
-  @keyframes heroGlow {
-    0% { transform: translate(0, 0); }
-    100% { transform: translate(30px, -20px); }
   }
 
   .hero h1 {
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 800;
     color: white;
     margin-bottom: 8px;
@@ -82,7 +88,7 @@
 
   .hero p {
     color: rgba(255,255,255,0.85);
-    font-size: 16px;
+    font-size: 15px;
     position: relative;
   }
 
@@ -90,26 +96,27 @@
   .container {
     max-width: 1080px;
     margin: -30px auto 0;
-    padding: 0 20px 40px;
+    padding: 0 16px 40px;
     position: relative;
     z-index: 1;
   }
 
   /* ===== Summary Bar (sticky) ===== */
   .summary-bar {
-    background: var(--card);
+    background: rgba(255,255,255,0.95);
     border-radius: var(--radius);
     box-shadow: var(--shadow-lg);
-    padding: 20px 28px;
-    margin-bottom: 24px;
+    padding: 16px;
+    margin-bottom: 20px;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
+    gap: 8px;
     position: sticky;
-    top: 10px;
+    top: 0;
     z-index: 100;
-    border: 1px solid rgba(255,255,255,0.8);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.6);
   }
 
   .summary-item {
@@ -120,7 +127,7 @@
   .summary-item::after {
     content: '';
     position: absolute;
-    right: -8px;
+    right: -4px;
     top: 15%;
     height: 70%;
     width: 1px;
@@ -130,7 +137,7 @@
   .summary-item:last-child::after { display: none; }
 
   .summary-item .value {
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 800;
     background: linear-gradient(135deg, var(--primary-dark), var(--primary));
     -webkit-background-clip: text;
@@ -146,11 +153,11 @@
   }
 
   .summary-item .label {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--text-light);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     margin-top: 2px;
   }
 
@@ -159,42 +166,38 @@
     background: var(--card);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 28px;
-    margin-bottom: 20px;
+    padding: 20px;
+    margin-bottom: 16px;
     border: 1px solid rgba(0,0,0,0.03);
-    transition: box-shadow var(--transition);
-  }
-
-  .card:hover {
-    box-shadow: var(--shadow-lg);
   }
 
   .card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
   }
 
   .card-header h2 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     color: var(--text);
   }
 
   .card-header h2 .icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-xs);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 16px;
+    flex-shrink: 0;
   }
 
   .icon-green  { background: var(--primary-light); }
@@ -205,7 +208,8 @@
   /* ===== Search ===== */
   .search-bar {
     position: relative;
-    max-width: 320px;
+    width: 100%;
+    flex-shrink: 0;
   }
 
   .search-bar input {
@@ -213,10 +217,12 @@
     padding: 10px 14px 10px 38px;
     border: 2px solid var(--border);
     border-radius: var(--radius-sm);
-    font-size: 14px;
+    font-size: 16px; /* 16px 防止 iOS 自动缩放 */
     outline: none;
     transition: border-color var(--transition), box-shadow var(--transition);
     background: #f8fafc;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .search-bar input:focus {
@@ -239,12 +245,19 @@
   .category-tabs {
     display: flex;
     gap: 8px;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
   }
 
+  .category-tabs::-webkit-scrollbar { display: none; }
+
   .tab-btn {
-    padding: 8px 18px;
+    padding: 8px 16px;
     border: 2px solid var(--border);
     border-radius: 50px;
     background: white;
@@ -254,12 +267,14 @@
     cursor: pointer;
     transition: all var(--transition);
     white-space: nowrap;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
-  .tab-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary-dark);
-    background: var(--primary-light);
+  .tab-btn:active {
+    transform: scale(0.95);
   }
 
   .tab-btn.active {
@@ -271,10 +286,10 @@
   .tab-btn .tab-count {
     display: inline-block;
     background: rgba(0,0,0,0.08);
-    padding: 1px 7px;
+    padding: 1px 6px;
     border-radius: 20px;
     font-size: 11px;
-    margin-left: 4px;
+    margin-left: 3px;
   }
 
   .tab-btn.active .tab-count {
@@ -284,45 +299,38 @@
   /* ===== Food Grid ===== */
   .food-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-    max-height: 420px;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    max-height: 55vh;
     overflow-y: auto;
-    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 2px;
   }
 
-  .food-grid::-webkit-scrollbar {
-    width: 6px;
-  }
-  .food-grid::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .food-grid::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-  }
+  .food-grid::-webkit-scrollbar { width: 4px; }
+  .food-grid::-webkit-scrollbar-track { background: transparent; }
+  .food-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
   .food-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 14px 8px 12px;
+    padding: 12px 6px 10px;
     border: 2px solid var(--border);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all var(--transition);
+    transition: all 0.15s ease;
     user-select: none;
     text-align: center;
     background: white;
     position: relative;
+    min-height: 88px;
   }
 
-  .food-item:hover {
-    border-color: var(--primary);
+  .food-item:active {
+    transform: scale(0.95);
     background: #f0fdf4;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16,185,129,0.15);
   }
 
   .food-item.selected {
@@ -333,28 +341,28 @@
   .food-item.selected::after {
     content: '✓';
     position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 20px;
-    height: 20px;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
     background: var(--primary);
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
   }
 
   .food-item .emoji {
-    font-size: 32px;
-    margin-bottom: 6px;
+    font-size: 28px;
+    margin-bottom: 4px;
     line-height: 1;
   }
 
   .food-item .name {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text);
     line-height: 1.3;
@@ -365,24 +373,150 @@
   }
 
   .food-item .cal {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-light);
-    margin-top: 2px;
+    margin-top: 1px;
   }
 
   .no-results {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 40px;
+    padding: 32px 16px;
     color: var(--text-light);
     font-size: 14px;
   }
 
-  /* ===== Selected Food Table ===== */
+  /* ===== Selected Food — Mobile Card Layout ===== */
+  .selected-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .sel-card {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    position: relative;
+  }
+
+  .sel-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .sel-card-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .sel-card-name .emoji-sm {
+    font-size: 24px;
+  }
+
+  .sel-card-remove {
+    background: none;
+    border: 2px solid transparent;
+    color: var(--text-light);
+    cursor: pointer;
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    -webkit-appearance: none;
+  }
+
+  .sel-card-remove:active {
+    background: var(--danger-light);
+    color: var(--danger);
+  }
+
+  .sel-card-amount {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .sel-card-amount label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .sel-card-amount input {
+    width: 80px;
+    padding: 8px 10px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xs);
+    text-align: center;
+    font-size: 16px; /* 防止 iOS 缩放 */
+    font-weight: 700;
+    outline: none;
+    transition: all var(--transition);
+    background: white;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .sel-card-amount input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+  }
+
+  .sel-card-amount .unit-label {
+    font-size: 13px;
+    color: var(--text-light);
+  }
+
+  .sel-card-nutrients {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .sel-nutrient {
+    text-align: center;
+    padding: 6px 4px;
+    background: white;
+    border-radius: var(--radius-xs);
+    border: 1px solid #f1f5f9;
+  }
+
+  .sel-nutrient .n-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .sel-nutrient .n-label {
+    font-size: 10px;
+    color: var(--text-light);
+    margin-top: 1px;
+  }
+
+  .sel-nutrient.cal-highlight .n-val {
+    color: var(--danger);
+  }
+
+  /* Desktop table (hidden on mobile) */
   .table-wrapper {
     overflow-x: auto;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
+    display: none; /* Hidden by default, shown on desktop */
   }
 
   .selected-list {
@@ -392,7 +526,7 @@
 
   .selected-list th {
     text-align: left;
-    padding: 12px 16px;
+    padding: 12px 14px;
     background: #f8fafc;
     font-size: 12px;
     color: var(--text-light);
@@ -404,36 +538,28 @@
   }
 
   .selected-list td {
-    padding: 12px 16px;
+    padding: 12px 14px;
     border-bottom: 1px solid #f1f5f9;
     font-size: 14px;
     vertical-align: middle;
   }
 
-  .selected-list tbody tr {
-    transition: background var(--transition);
-  }
-
-  .selected-list tbody tr:hover {
-    background: #f8fafc;
-  }
-
-  .selected-list tr:last-child td {
+  .selected-list tbody tr:last-child td {
     border-bottom: none;
   }
 
   .food-name-cell {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-weight: 600;
   }
 
   .food-name-cell .emoji-sm {
-    font-size: 22px;
+    font-size: 20px;
   }
 
-  .amount-input {
+  .amount-input-desk {
     width: 76px;
     padding: 7px 10px;
     border: 2px solid var(--border);
@@ -446,7 +572,7 @@
     background: #f8fafc;
   }
 
-  .amount-input:focus {
+  .amount-input-desk:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-light);
     background: white;
@@ -462,7 +588,7 @@
     font-size: 11px;
   }
 
-  .btn-remove {
+  .btn-remove-desk {
     background: none;
     border: 2px solid transparent;
     color: var(--text-light);
@@ -477,7 +603,7 @@
     transition: all var(--transition);
   }
 
-  .btn-remove:hover {
+  .btn-remove-desk:hover {
     background: var(--danger-light);
     color: var(--danger);
     border-color: var(--danger);
@@ -485,16 +611,16 @@
 
   .empty-state {
     text-align: center;
-    padding: 48px 20px;
+    padding: 40px 16px;
   }
 
   .empty-state .empty-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
+    font-size: 44px;
+    margin-bottom: 10px;
   }
 
   .empty-state .empty-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 4px;
@@ -508,33 +634,38 @@
   /* ===== Add Form ===== */
   .add-form {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
-    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
     align-items: end;
+  }
+
+  .add-form .form-full {
+    grid-column: 1 / -1;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
   }
 
   .form-group label {
     font-size: 12px;
     color: var(--text-secondary);
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
   }
 
   .form-group input {
-    padding: 9px 12px;
+    padding: 10px 12px;
     border: 2px solid var(--border);
     border-radius: var(--radius-xs);
-    font-size: 14px;
+    font-size: 16px; /* 防止 iOS 缩放 */
     outline: none;
     transition: all var(--transition);
     background: #f8fafc;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .form-group input:focus {
@@ -548,35 +679,36 @@
   }
 
   .btn-add {
-    padding: 9px 24px;
+    padding: 11px 24px;
     background: linear-gradient(135deg, var(--accent), #d97706);
     color: white;
     border: none;
     border-radius: var(--radius-xs);
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     transition: all var(--transition);
     white-space: nowrap;
-    height: 42px;
     box-shadow: 0 2px 8px rgba(245,158,11,0.3);
+    grid-column: 1 / -1;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
-  .btn-add:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(245,158,11,0.4);
+  .btn-add:active {
+    transform: scale(0.98);
   }
 
   /* ===== Action Buttons ===== */
   .actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: 16px;
+    margin-top: 14px;
     gap: 10px;
   }
 
   .btn-clear {
-    padding: 9px 24px;
+    padding: 10px 20px;
     background: white;
     color: var(--danger);
     border: 2px solid var(--danger);
@@ -585,18 +717,18 @@
     font-size: 13px;
     font-weight: 700;
     transition: all var(--transition);
+    -webkit-appearance: none;
+    appearance: none;
   }
 
-  .btn-clear:hover {
+  .btn-clear:active {
     background: var(--danger);
     color: white;
   }
 
   /* ===== Progress Bar ===== */
   .calorie-progress {
-    margin-top: 12px;
-    padding: 16px 0 0;
-    border-top: 1px solid var(--border);
+    padding: 4px 0 0;
   }
 
   .progress-header {
@@ -609,7 +741,7 @@
   }
 
   .progress-track {
-    height: 12px;
+    height: 14px;
     background: #f1f5f9;
     border-radius: 20px;
     overflow: hidden;
@@ -636,7 +768,7 @@
   .macro-bars {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 12px;
     margin-top: 16px;
   }
 
@@ -649,12 +781,11 @@
     font-weight: 700;
     color: var(--text-secondary);
     margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
   }
 
   .mini-progress {
-    height: 8px;
+    height: 10px;
     background: #f1f5f9;
     border-radius: 10px;
     overflow: hidden;
@@ -685,73 +816,152 @@
   /* ===== Footer ===== */
   footer {
     text-align: center;
-    padding: 24px 20px;
+    padding: 20px 16px;
+    padding-bottom: calc(20px + var(--safe-bottom));
     color: var(--text-light);
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.5;
   }
 
-  footer a {
-    color: var(--primary);
-    text-decoration: none;
-  }
+  /* ============================
+     Desktop (> 768px)
+     ============================ */
+  @media (min-width: 769px) {
+    .container { padding: 0 20px 40px; }
+    .card { padding: 28px; }
 
-  /* ===== Responsive ===== */
-  @media (max-width: 768px) {
-    .hero { padding: 36px 16px 50px; }
-    .hero h1 { font-size: 26px; }
-    .container { padding: 0 12px 30px; }
+    .hero { padding: 48px 20px 60px; }
+    .hero h1 { font-size: 36px; }
+
+    .search-bar { max-width: 320px; }
+
+    .card-header { flex-wrap: nowrap; }
 
     .summary-bar {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      padding: 16px;
+      padding: 20px 28px;
+      gap: 16px;
     }
-    .summary-item:nth-child(3)::after { display: none; }
-    .summary-item .value { font-size: 22px; }
+    .summary-item .value { font-size: 30px; }
+    .summary-item .label { font-size: 12px; }
 
     .food-grid {
-      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-      max-height: 350px;
-    }
-
-    .add-form {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .macro-bars {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 10px;
+      max-height: 420px;
+    }
+    .food-item {
+      padding: 14px 8px 12px;
+      min-height: auto;
+    }
+    .food-item .emoji { font-size: 32px; }
+    .food-item .name { font-size: 13px; }
+
+    .food-item:hover {
+      border-color: var(--primary);
+      background: #f0fdf4;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16,185,129,0.15);
+    }
+
+    /* Desktop: show table, hide cards */
+    .table-wrapper { display: block; }
+    .selected-cards { display: none !important; }
+
+    .add-form {
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .add-form .form-full { grid-column: auto; }
+    .btn-add { grid-column: auto; }
+
+    .card:hover { box-shadow: var(--shadow-lg); }
+
+    .btn-remove-desk:hover {
+      background: var(--danger-light);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .btn-clear:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-add:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(245,158,11,0.4);
     }
   }
 
-  @media (max-width: 480px) {
-    .hero h1 { font-size: 22px; }
-    .card { padding: 18px; }
+  /* ============================
+     Small Phone (< 380px)
+     ============================ */
+  @media (max-width: 379px) {
+    .hero h1 { font-size: 24px; }
+    .hero p { font-size: 13px; }
+    .container { padding: 0 10px 30px; }
+    .card { padding: 14px; }
+
     .summary-bar {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .add-form {
-      grid-template-columns: 1fr;
-    }
-    .food-grid {
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      padding: 12px 10px;
+      gap: 4px;
     }
-    .food-item { padding: 10px 6px 8px; }
-    .food-item .emoji { font-size: 26px; }
-    .food-item .name { font-size: 12px; }
+    .summary-item .value { font-size: 18px; }
+    .summary-item:nth-child(3)::after { display: none; }
+
+    .food-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .food-item { padding: 8px 4px 6px; min-height: 76px; }
+    .food-item .emoji { font-size: 24px; }
+    .food-item .name { font-size: 11px; }
+    .food-item .cal { font-size: 9px; }
+
+    .sel-card-nutrients { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ============================
+     Medium Phone (380px - 768px)
+     ============================ */
+  @media (min-width: 380px) and (max-width: 768px) {
+    .summary-bar {
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+      padding: 14px 10px;
+    }
+    .summary-item .value { font-size: 20px; }
+    .summary-item::after { display: none; }
+
+    .food-grid {
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    }
   }
 
   /* ===== Animations ===== */
   @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(16px); }
+    from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  .card { animation: fadeInUp 0.4s ease both; }
-  .card:nth-child(2) { animation-delay: 0.05s; }
-  .card:nth-child(3) { animation-delay: 0.1s; }
-  .card:nth-child(4) { animation-delay: 0.15s; }
+  .card { animation: fadeInUp 0.35s ease both; }
+  .card:nth-child(2) { animation-delay: 0.04s; }
+  .card:nth-child(3) { animation-delay: 0.08s; }
+  .card:nth-child(4) { animation-delay: 0.12s; }
+
+  /* WeChat & iOS overrides */
+  input[type="number"],
+  input[type="text"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: var(--radius-xs);
+  }
+
+  /* Number input spin buttons removal (cleaner on mobile) */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] { -moz-appearance: textfield; }
 </style>
 </head>
 <body>
@@ -783,7 +993,7 @@
     </div>
     <div class="summary-item">
       <div class="value" id="totalFiber">0</div>
-      <div class="label">膳食纤维 g</div>
+      <div class="label">纤维 g</div>
     </div>
   </div>
 
@@ -791,10 +1001,10 @@
   <div class="card">
     <div class="card-header">
       <h2><span class="icon icon-green">📋</span>选择食物</h2>
-      <div class="search-bar">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="搜索食物..." oninput="onSearch()">
-      </div>
+    </div>
+    <div class="search-bar" style="margin-bottom:14px;">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜索食物名称..." oninput="onSearch()" enterkeyhint="search">
     </div>
     <div class="category-tabs" id="categoryTabs"></div>
     <div class="food-grid" id="foodGrid"></div>
@@ -806,27 +1016,27 @@
       <h2><span class="icon icon-orange">➕</span>手动添加食物</h2>
     </div>
     <div class="add-form">
-      <div class="form-group">
+      <div class="form-group form-full">
         <label>食物名称</label>
-        <input type="text" id="customName" placeholder="如：红烧牛肉面">
+        <input type="text" id="customName" placeholder="如：红烧牛肉面" enterkeyhint="next">
       </div>
       <div class="form-group">
         <label>热量 kcal/100g</label>
-        <input type="number" id="customCalories" placeholder="350">
+        <input type="number" id="customCalories" placeholder="350" inputmode="decimal" enterkeyhint="next">
       </div>
       <div class="form-group">
         <label>蛋白质 g/100g</label>
-        <input type="number" id="customProtein" placeholder="12">
+        <input type="number" id="customProtein" placeholder="12" inputmode="decimal" enterkeyhint="next">
       </div>
       <div class="form-group">
         <label>碳水 g/100g</label>
-        <input type="number" id="customCarbs" placeholder="45">
+        <input type="number" id="customCarbs" placeholder="45" inputmode="decimal" enterkeyhint="next">
       </div>
       <div class="form-group">
         <label>脂肪 g/100g</label>
-        <input type="number" id="customFat" placeholder="8">
+        <input type="number" id="customFat" placeholder="8" inputmode="decimal" enterkeyhint="done">
       </div>
-      <button class="btn-add" onclick="addCustomFood()">+ 添加</button>
+      <button class="btn-add" onclick="addCustomFood()">+ 添加食物</button>
     </div>
   </div>
 
@@ -839,7 +1049,7 @@
       <div class="empty-state">
         <div class="empty-icon">🍽️</div>
         <div class="empty-title">还没有添加食物</div>
-        <div class="empty-desc">点击上方食物卡片，开始记录今天的饮食吧</div>
+        <div class="empty-desc">点击上方食物卡片开始记录</div>
       </div>
     </div>
     <div class="actions" id="actionsArea" style="display:none;">
@@ -850,7 +1060,7 @@
   <!-- 营养分析 -->
   <div class="card">
     <div class="card-header">
-      <h2><span class="icon icon-purple">📊</span>营养摄入分析</h2>
+      <h2><span class="icon icon-purple">📊</span>营养分析</h2>
     </div>
     <div class="calorie-progress">
       <div class="progress-header">
@@ -887,13 +1097,14 @@
   </div>
 
   <footer>
-    营养数据来源于中国食物成分表，仅供参考。实际营养含量因烹饪方式和食材差异可能有所不同。
+    营养数据来源于中国食物成分表，仅供参考。<br>
+    实际营养含量因烹饪方式和食材差异可能有所不同。
   </footer>
 </div>
 
 <script>
 // ============================
-// 预设食物数据库（按分类，每100g营养数据）
+// 食物数据库
 // ============================
 const foodDatabase = {
   "主食": [
@@ -1009,24 +1220,19 @@ let allFoods = [];
 let categories = [];
 let currentCategory = "全部";
 let searchQuery = "";
-let selectedFoods = []; // [{foodIdx, amount}]
-
-// 推荐日摄入量
+let selectedFoods = [];
+const isMobile = /iPhone|iPad|iPod|Android|MicroMessenger/i.test(navigator.userAgent);
 const dailyTarget = { calories: 2000, protein: 65, carbs: 300, fat: 60 };
 
-// 初始化食物列表
 function initFoods() {
   allFoods = [];
   categories = [];
   for (const [cat, foods] of Object.entries(foodDatabase)) {
     categories.push(cat);
-    foods.forEach(f => {
-      allFoods.push({ ...f, category: cat });
-    });
+    foods.forEach(f => allFoods.push({ ...f, category: cat }));
   }
 }
 
-// 从 localStorage 恢复自定义食物
 function loadCustomFoods() {
   try {
     const saved = localStorage.getItem("customFoodsV2");
@@ -1045,7 +1251,7 @@ function saveCustomFoods() {
   localStorage.setItem("customFoodsV2", JSON.stringify(customs));
 }
 
-// ===== Render Category Tabs =====
+// ===== Category Tabs =====
 function renderCategoryTabs() {
   const container = document.getElementById("categoryTabs");
   const allCount = getFilteredFoods("全部").length;
@@ -1056,6 +1262,14 @@ function renderCategoryTabs() {
     html += `<button class="tab-btn ${currentCategory === cat ? 'active' : ''}" onclick="setCategory('${cat}')">${cat}<span class="tab-count">${count}</span></button>`;
   });
   container.innerHTML = html;
+
+  // 自动滚动到选中的 tab
+  requestAnimationFrame(() => {
+    const activeTab = container.querySelector('.tab-btn.active');
+    if (activeTab) {
+      activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  });
 }
 
 function setCategory(cat) {
@@ -1072,13 +1286,13 @@ function getFilteredFoods(cat) {
   return list;
 }
 
-// ===== Render Food Grid =====
+// ===== Food Grid =====
 function renderFoodGrid() {
   const grid = document.getElementById("foodGrid");
   const filtered = getFilteredFoods(currentCategory);
 
   if (filtered.length === 0) {
-    grid.innerHTML = '<div class="no-results">😅 没有找到匹配的食物，试试其他关键词</div>';
+    grid.innerHTML = '<div class="no-results">😅 没有找到匹配的食物</div>';
     return;
   }
 
@@ -1104,7 +1318,6 @@ function onSearch() {
   renderFoodGrid();
 }
 
-// ===== Toggle / Select =====
 function toggleFood(idx) {
   const existIdx = selectedFoods.findIndex(s => s.foodIdx === idx);
   if (existIdx >= 0) {
@@ -1124,34 +1337,74 @@ function renderSelectedList() {
     area.innerHTML = `<div class="empty-state">
       <div class="empty-icon">🍽️</div>
       <div class="empty-title">还没有添加食物</div>
-      <div class="empty-desc">点击上方食物卡片，开始记录今天的饮食吧</div>
+      <div class="empty-desc">点击上方食物卡片开始记录</div>
     </div>`;
     actions.style.display = "none";
     return;
   }
 
   actions.style.display = "flex";
-  let html = `<div class="table-wrapper"><table class="selected-list">
-    <thead><tr>
-      <th>食物</th><th>数量 (g)</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th></th>
-    </tr></thead><tbody>`;
 
+  // Mobile: card layout
+  let cardsHtml = '<div class="selected-cards">';
   selectedFoods.forEach((item, i) => {
     const food = allFoods[item.foodIdx];
     const r = item.amount / 100;
-    html += `<tr>
+    cardsHtml += `<div class="sel-card">
+      <div class="sel-card-top">
+        <div class="sel-card-name"><span class="emoji-sm">${food.emoji}</span>${food.name}</div>
+        <button class="sel-card-remove" onclick="removeFood(${i})" aria-label="移除">✕</button>
+      </div>
+      <div class="sel-card-amount">
+        <label>数量</label>
+        <input type="number" inputmode="decimal" min="0" value="${item.amount}"
+          onchange="updateAmount(${i}, this.value)"
+          oninput="updateAmount(${i}, this.value)">
+        <span class="unit-label">克</span>
+      </div>
+      <div class="sel-card-nutrients">
+        <div class="sel-nutrient cal-highlight">
+          <div class="n-val">${(food.calories * r).toFixed(0)}</div>
+          <div class="n-label">热量 kcal</div>
+        </div>
+        <div class="sel-nutrient">
+          <div class="n-val">${(food.protein * r).toFixed(1)}</div>
+          <div class="n-label">蛋白质 g</div>
+        </div>
+        <div class="sel-nutrient">
+          <div class="n-val">${(food.carbs * r).toFixed(1)}</div>
+          <div class="n-label">碳水 g</div>
+        </div>
+        <div class="sel-nutrient">
+          <div class="n-val">${(food.fat * r).toFixed(1)}</div>
+          <div class="n-label">脂肪 g</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  cardsHtml += '</div>';
+
+  // Desktop: table layout
+  let tableHtml = `<div class="table-wrapper"><table class="selected-list">
+    <thead><tr>
+      <th>食物</th><th>数量 (g)</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th></th>
+    </tr></thead><tbody>`;
+  selectedFoods.forEach((item, i) => {
+    const food = allFoods[item.foodIdx];
+    const r = item.amount / 100;
+    tableHtml += `<tr>
       <td><div class="food-name-cell"><span class="emoji-sm">${food.emoji}</span>${food.name}</div></td>
-      <td><input class="amount-input" type="number" min="0" value="${item.amount}" onchange="updateAmount(${i}, this.value)" oninput="updateAmount(${i}, this.value)"></td>
+      <td><input class="amount-input-desk" type="number" min="0" value="${item.amount}" onchange="updateAmount(${i}, this.value)" oninput="updateAmount(${i}, this.value)"></td>
       <td><span class="nutrient-val">${(food.calories * r).toFixed(0)} <span class="unit">kcal</span></span></td>
       <td><span class="nutrient-val">${(food.protein * r).toFixed(1)} <span class="unit">g</span></span></td>
       <td><span class="nutrient-val">${(food.carbs * r).toFixed(1)} <span class="unit">g</span></span></td>
       <td><span class="nutrient-val">${(food.fat * r).toFixed(1)} <span class="unit">g</span></span></td>
-      <td><button class="btn-remove" onclick="removeFood(${i})" title="移除">✕</button></td>
+      <td><button class="btn-remove-desk" onclick="removeFood(${i})" title="移除">✕</button></td>
     </tr>`;
   });
+  tableHtml += `</tbody></table></div>`;
 
-  html += `</tbody></table></div>`;
-  area.innerHTML = html;
+  area.innerHTML = cardsHtml + tableHtml;
 }
 
 function updateAmount(i, val) {
@@ -1174,7 +1427,6 @@ function clearAll() {
 // ===== Summary =====
 function renderSummary() {
   let totalCal = 0, totalPro = 0, totalCarb = 0, totalFat = 0, totalFib = 0;
-
   selectedFoods.forEach(item => {
     const food = allFoods[item.foodIdx];
     const r = item.amount / 100;
@@ -1185,7 +1437,6 @@ function renderSummary() {
     totalFib  += (food.fiber || 0) * r;
   });
 
-  // Sticky bar
   document.getElementById("totalCalories").textContent = totalCal.toFixed(0);
   document.getElementById("totalProtein").textContent  = totalPro.toFixed(1);
   document.getElementById("totalCarbs").textContent    = totalCarb.toFixed(1);
@@ -1196,21 +1447,20 @@ function renderSummary() {
   const calPct = Math.min(totalCal / dailyTarget.calories * 100, 100);
   const calFill = document.getElementById("calorieFill");
   calFill.style.width = calPct + "%";
-  calFill.className = "progress-fill" + (calPct > 100 ? " over" : calPct > 80 ? " warning" : "");
-  document.getElementById("calorieStatus").textContent = `${totalCal.toFixed(0)} / ${dailyTarget.calories} kcal`;
+  calFill.className = "progress-fill" + (totalCal > dailyTarget.calories ? " over" : calPct > 80 ? " warning" : "");
+  document.getElementById("calorieStatus").textContent = totalCal.toFixed(0) + " / " + dailyTarget.calories + " kcal";
 
-  // Macro bars
   const proPct = Math.min(totalPro / dailyTarget.protein * 100, 100);
   document.getElementById("proteinFill").style.width = proPct + "%";
-  document.getElementById("proteinStatus").innerHTML = `${totalPro.toFixed(1)}g <span>/ ${dailyTarget.protein}g</span>`;
+  document.getElementById("proteinStatus").innerHTML = totalPro.toFixed(1) + "g <span>/ " + dailyTarget.protein + "g</span>";
 
   const carbPct = Math.min(totalCarb / dailyTarget.carbs * 100, 100);
   document.getElementById("carbsFill").style.width = carbPct + "%";
-  document.getElementById("carbsStatus").innerHTML = `${totalCarb.toFixed(1)}g <span>/ ${dailyTarget.carbs}g</span>`;
+  document.getElementById("carbsStatus").innerHTML = totalCarb.toFixed(1) + "g <span>/ " + dailyTarget.carbs + "g</span>";
 
   const fatPct = Math.min(totalFat / dailyTarget.fat * 100, 100);
   document.getElementById("fatFill").style.width = fatPct + "%";
-  document.getElementById("fatStatus").innerHTML = `${totalFat.toFixed(1)}g <span>/ ${dailyTarget.fat}g</span>`;
+  document.getElementById("fatStatus").innerHTML = totalFat.toFixed(1) + "g <span>/ " + dailyTarget.fat + "g</span>";
 }
 
 // ===== Add Custom Food =====
@@ -1228,7 +1478,6 @@ function addCustomFood() {
   allFoods.push(newFood);
   if (!categories.includes("自定义")) categories.push("自定义");
   saveCustomFoods();
-
   selectedFoods.push({ foodIdx: allFoods.length - 1, amount: 100 });
 
   document.getElementById("customName").value = "";
@@ -1237,10 +1486,11 @@ function addCustomFood() {
   document.getElementById("customCarbs").value = "";
   document.getElementById("customFat").value = "";
 
+  // 收起键盘
+  document.activeElement.blur();
   render();
 }
 
-// ===== Master Render =====
 function render() {
   renderCategoryTabs();
   renderFoodGrid();
@@ -1252,6 +1502,9 @@ function render() {
 initFoods();
 loadCustomFoods();
 render();
+
+// 微信浏览器中禁止弹性滚动导致整页下拉
+document.body.addEventListener('touchmove', function(e) {}, { passive: true });
 </script>
 </body>
 </html>

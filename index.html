@@ -528,7 +528,7 @@ input[type="number"] { -moz-appearance: textfield; }
 <div class="page active" id="pageRecord">
   <div class="hero">
     <h1>🍱 每日饮食记录</h1>
-    <p>记录饮食 · 掌控营养 · 吃得明白</p>
+    <p>记录饮食 · 掌控营养 · 吃得明白 · <span id="heroUserName" style="font-weight:700;"></span></p>
     <div class="date-nav">
       <button onclick="changeDate(-1)">◀</button>
       <div class="date-display" id="dateDisplay" onclick="openDatePicker()"></div>
@@ -638,10 +638,77 @@ input[type="number"] { -moz-appearance: textfield; }
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- ==================== PAGE: 我的 ==================== -->
+<div class="page" id="pageProfile">
+  <div class="hero" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);">
+    <h1>👤 个人中心</h1>
+    <p>管理账号与数据</p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <div class="card-header"><h2><span class="icon icon-blue">😊</span>当前用户</h2></div>
+      <div style="display:flex;align-items:center;gap:14px;padding:8px 0;">
+        <div id="profileAvatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;font-size:24px;color:white;font-weight:800;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div id="profileName" style="font-size:18px;font-weight:700;"></div>
+          <div id="profileStats" style="font-size:12px;color:var(--text-light);margin-top:2px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2><span class="icon icon-orange">🔄</span>切换用户</h2></div>
+      <div id="userList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn-save" onclick="showNewUserDialog()" style="flex:1;">➕ 新建用户</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2><span class="icon icon-purple">⚙️</span>设置</h2></div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:14px;font-weight:600;">修改昵称</div><div style="font-size:11px;color:var(--text-light);">更改当前用户的显示名称</div></div>
+          <button onclick="renameCurrentUser()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">修改</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:14px;font-weight:600;">导出数据</div><div style="font-size:11px;color:var(--text-light);">将当前用户数据导出为 JSON 文件</div></div>
+          <button onclick="exportData()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">导出</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:14px;font-weight:600;">导入数据</div><div style="font-size:11px;color:var(--text-light);">从 JSON 文件恢复数据</div></div>
+          <button onclick="document.getElementById('importFile').click()" style="padding:7px 16px;background:var(--bg);border:2px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;">导入</button>
+          <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">
+          <div><div style="font-size:14px;font-weight:600;color:var(--danger);">删除用户</div><div style="font-size:11px;color:var(--text-light);">永久删除当前用户及所有数据</div></div>
+          <button onclick="deleteCurrentUser()" style="padding:7px 16px;background:var(--danger-light);border:2px solid var(--danger);border-radius:var(--radius-xs);font-size:12px;font-weight:700;color:var(--danger);cursor:pointer;">删除</button>
+        </div>
+      </div>
+    </div>
+    <footer>数据保存在浏览器本地，清除浏览器缓存会丢失数据。<br>建议定期导出备份。</footer>
+  </div>
+</div>
+
+<!-- 用户设置弹窗 -->
+<div id="userModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:var(--radius);padding:28px;width:100%;max-width:360px;box-shadow:var(--shadow-lg);">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:40px;margin-bottom:8px;">👋</div>
+      <div id="modalTitle" style="font-size:20px;font-weight:800;color:var(--text);"></div>
+      <div id="modalDesc" style="font-size:13px;color:var(--text-light);margin-top:4px;"></div>
+    </div>
+    <input type="text" id="modalInput" placeholder="输入昵称" maxlength="20" style="width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:16px;outline:none;text-align:center;font-weight:600;-webkit-appearance:none;margin-bottom:16px;" enterkeyhint="done">
+    <button id="modalBtn" onclick="confirmUserModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;-webkit-appearance:none;">确认</button>
+    <button id="modalCancel" onclick="closeUserModal()" style="width:100%;padding:10px;background:none;border:none;color:var(--text-light);font-size:13px;cursor:pointer;margin-top:8px;display:none;">取消</button>
+  </div>
+</div>
+
 <!-- Tab Bar -->
 <div class="tab-bar">
   <button class="tab-bar-item active" onclick="switchPage('record')"><span class="tab-icon">🍱</span>记录</button>
   <button class="tab-bar-item" onclick="switchPage('history')"><span class="tab-icon">📈</span>历史</button>
+  <button class="tab-bar-item" onclick="switchPage('profile')"><span class="tab-icon">👤</span>我的</button>
 </div>
 
 <script>
@@ -791,6 +858,63 @@ const foodDatabase = {
 };
 
 // ===========================================================================
+// USER SYSTEM
+// ===========================================================================
+const USERS_META_KEY = "foodApp_users";
+let currentUser = null; // { id, name, createdAt }
+
+function getAllUsers() {
+  try { return JSON.parse(localStorage.getItem(USERS_META_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveAllUsers(users) {
+  localStorage.setItem(USERS_META_KEY, JSON.stringify(users));
+}
+
+function getCurrentUserId() {
+  return localStorage.getItem("foodApp_currentUser") || null;
+}
+
+function setCurrentUserId(id) {
+  localStorage.setItem("foodApp_currentUser", id);
+}
+
+function createUser(name) {
+  const users = getAllUsers();
+  const id = "u_" + Date.now() + "_" + Math.random().toString(36).slice(2,6);
+  const user = { id, name, createdAt: new Date().toISOString() };
+  users.push(user);
+  saveAllUsers(users);
+  return user;
+}
+
+function switchUser(userId) {
+  autoSave();
+  const users = getAllUsers();
+  const user = users.find(u => u.id === userId);
+  if (!user) return;
+  currentUser = user;
+  setCurrentUserId(userId);
+  // Reinit with new user's data
+  initFoods();
+  loadCustomFoods();
+  loadDayData();
+  updateDateDisplay();
+  updateUserDisplay();
+  renderRecord();
+}
+
+function updateUserDisplay() {
+  // Show current user name in hero area
+  const heroUser = document.getElementById("heroUserName");
+  if (heroUser && currentUser) heroUser.textContent = currentUser.name;
+}
+
+function userStorageKey(base) {
+  return currentUser ? currentUser.id + "_" + base : base;
+}
+
+// ===========================================================================
 // STATE
 // ===========================================================================
 let allFoods = [];
@@ -801,8 +925,9 @@ let selectedFoods = []; // [{foodIdx, amount}]
 let currentDate = todayStr();
 let currentRange = "7";
 const dailyTarget = { calories:2000, protein:65, carbs:300, fat:60 };
-const STORAGE_KEY = "dailyFoodRecords";
-const CUSTOM_KEY = "customFoodsV3";
+
+function getStorageKey() { return userStorageKey("dailyFoodRecords"); }
+function getCustomKey() { return userStorageKey("customFoodsV3"); }
 
 function todayStr() { return new Date().toISOString().slice(0,10); }
 
@@ -831,7 +956,7 @@ function initFoods() {
 
 function loadCustomFoods() {
   try {
-    const saved = localStorage.getItem(CUSTOM_KEY);
+    const saved = localStorage.getItem(getCustomKey());
     if (saved) {
       JSON.parse(saved).forEach(f => allFoods.push(f));
       const extraCats = [...new Set(allFoods.slice(Object.values(foodDatabase).flat().length).map(f=>f.category))];
@@ -842,14 +967,14 @@ function loadCustomFoods() {
 
 function saveCustomFoods() {
   const dbCount = Object.values(foodDatabase).flat().length;
-  localStorage.setItem(CUSTOM_KEY, JSON.stringify(allFoods.slice(dbCount)));
+  localStorage.setItem(getCustomKey(), JSON.stringify(allFoods.slice(dbCount)));
 }
 
 // ===========================================================================
 // DAILY RECORD STORAGE
 // ===========================================================================
 function getAllRecords() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; }
+  try { return JSON.parse(localStorage.getItem(getStorageKey())) || {}; } catch(e) { return {}; }
 }
 
 function getDayRecord(date) {
@@ -857,7 +982,6 @@ function getDayRecord(date) {
 }
 
 function saveDayRecord(date, items) {
-  // items: [{name, emoji, amount, calories, protein, carbs, fat, fiber}]
   const records = getAllRecords();
   const totals = { calories:0, protein:0, carbs:0, fat:0, fiber:0 };
   items.forEach(it => {
@@ -869,13 +993,13 @@ function saveDayRecord(date, items) {
     totals.fiber    += (it.fiber||0) * r;
   });
   records[date] = { items, totals, savedAt: new Date().toISOString() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  localStorage.setItem(getStorageKey(), JSON.stringify(records));
 }
 
 function deleteDayRecord(date) {
   const records = getAllRecords();
   delete records[date];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  localStorage.setItem(getStorageKey(), JSON.stringify(records));
 }
 
 // ===========================================================================
@@ -962,10 +1086,14 @@ function switchPage(page) {
   if (page === 'record') {
     document.getElementById('pageRecord').classList.add('active');
     document.querySelectorAll('.tab-bar-item')[0].classList.add('active');
-  } else {
+  } else if (page === 'history') {
     document.getElementById('pageHistory').classList.add('active');
     document.querySelectorAll('.tab-bar-item')[1].classList.add('active');
     renderHistory();
+  } else if (page === 'profile') {
+    document.getElementById('pageProfile').classList.add('active');
+    document.querySelectorAll('.tab-bar-item')[2].classList.add('active');
+    renderProfile();
   }
   window.scrollTo(0, 0);
 }
@@ -1364,19 +1492,138 @@ function showToast(msg) {
 }
 
 // ===========================================================================
+// PROFILE PAGE
+// ===========================================================================
+function renderProfile() {
+  if (!currentUser) return;
+  document.getElementById("profileAvatar").textContent = currentUser.name.slice(0,1).toUpperCase();
+  document.getElementById("profileName").textContent = currentUser.name;
+  const records = getAllRecords();
+  const days = Object.keys(records).length;
+  const created = new Date(currentUser.createdAt);
+  document.getElementById("profileStats").textContent = "已记录 " + days + " 天 · 创建于 " + (created.getMonth()+1) + "/" + created.getDate();
+  // User list
+  const users = getAllUsers();
+  const el = document.getElementById("userList");
+  el.innerHTML = users.map(u => {
+    const isCurrent = u.id === currentUser.id;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:2px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'};background:${isCurrent ? 'var(--primary-light)' : 'white'};cursor:pointer;" onclick="${isCurrent ? '' : "switchUser('"+u.id+"')"}">
+      <div style="width:36px;height:36px;border-radius:50%;background:${isCurrent ? 'var(--primary)' : '#e2e8f0'};display:flex;align-items:center;justify-content:center;font-size:14px;color:${isCurrent ? 'white' : 'var(--text-secondary)'};font-weight:700;">${u.name.slice(0,1)}</div>
+      <div style="flex:1;"><div style="font-size:14px;font-weight:600;">${u.name}</div></div>
+      ${isCurrent ? '<div style="font-size:11px;color:var(--primary);font-weight:700;background:white;padding:2px 8px;border-radius:10px;">当前</div>' : '<div style="font-size:11px;color:var(--text-light);">切换</div>'}
+    </div>`;
+  }).join('');
+}
+
+// ===========================================================================
+// USER MODAL
+// ===========================================================================
+let modalMode = "new"; // "new" | "rename" | "first"
+function showUserModal(mode, title, desc, cancelable) {
+  modalMode = mode;
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalDesc").textContent = desc;
+  document.getElementById("modalInput").value = "";
+  document.getElementById("modalCancel").style.display = cancelable ? "block" : "none";
+  const m = document.getElementById("userModal");
+  m.style.display = "flex";
+  setTimeout(() => document.getElementById("modalInput").focus(), 100);
+}
+function closeUserModal() { document.getElementById("userModal").style.display = "none"; }
+function showNewUserDialog() { showUserModal("new", "新建用户", "为新用户取一个昵称", true); }
+function confirmUserModal() {
+  const name = document.getElementById("modalInput").value.trim();
+  if (!name) { alert("请输入昵称"); return; }
+  if (modalMode === "first" || modalMode === "new") {
+    autoSave();
+    const user = createUser(name);
+    switchUser(user.id);
+    showToast("🎉 欢迎，" + name + "！");
+  } else if (modalMode === "rename") {
+    const users = getAllUsers();
+    const u = users.find(u => u.id === currentUser.id);
+    if (u) { u.name = name; saveAllUsers(users); currentUser.name = name; updateUserDisplay(); renderProfile(); showToast("✅ 昵称已修改"); }
+  }
+  closeUserModal();
+}
+function renameCurrentUser() { showUserModal("rename", "修改昵称", "输入新的昵称", true); }
+function deleteCurrentUser() {
+  const users = getAllUsers();
+  if (users.length <= 1) { alert("至少保留一个用户"); return; }
+  if (!confirm("确定删除用户「" + currentUser.name + "」及其所有数据？此操作不可恢复！")) return;
+  // Remove storage
+  localStorage.removeItem(getStorageKey());
+  localStorage.removeItem(getCustomKey());
+  const newUsers = users.filter(u => u.id !== currentUser.id);
+  saveAllUsers(newUsers);
+  switchUser(newUsers[0].id);
+  showToast("已删除");
+  renderProfile();
+}
+
+// ===========================================================================
+// DATA EXPORT / IMPORT
+// ===========================================================================
+function exportData() {
+  const data = { user: currentUser, records: getAllRecords(), customFoods: JSON.parse(localStorage.getItem(getCustomKey()) || "[]"), exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "diet_" + currentUser.name + "_" + todayStr() + ".json";
+  a.click(); URL.revokeObjectURL(url);
+  showToast("📦 数据已导出");
+}
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.records) { localStorage.setItem(getStorageKey(), JSON.stringify(data.records)); }
+      if (data.customFoods) { localStorage.setItem(getCustomKey(), JSON.stringify(data.customFoods)); }
+      initFoods(); loadCustomFoods(); loadDayData(); renderRecord(); renderProfile();
+      showToast("✅ 数据已导入");
+    } catch(err) { alert("文件格式错误"); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+}
+
+// ===========================================================================
 // INIT
 // ===========================================================================
-initFoods();
-loadCustomFoods();
-loadDayData();
-updateDateDisplay();
-renderRecord();
+(function initApp() {
+  const users = getAllUsers();
+  const savedId = getCurrentUserId();
+  if (users.length === 0) {
+    // First time — show welcome modal
+    const defaultUser = createUser("默认用户");
+    currentUser = defaultUser;
+    setCurrentUserId(defaultUser.id);
+    initFoods();
+    loadCustomFoods();
+    loadDayData();
+    updateDateDisplay();
+    updateUserDisplay();
+    renderRecord();
+    // Show rename dialog
+    setTimeout(() => showUserModal("rename", "欢迎使用 🍱", "给自己取一个昵称吧", false), 300);
+  } else {
+    const user = users.find(u => u.id === savedId) || users[0];
+    currentUser = user;
+    setCurrentUserId(user.id);
+    initFoods();
+    loadCustomFoods();
+    loadDayData();
+    updateDateDisplay();
+    updateUserDisplay();
+    renderRecord();
+  }
+})();
 
-// Auto-save on page hide (closing tab, switching app, etc.)
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) autoSave();
-});
+document.addEventListener("visibilitychange", () => { if (document.hidden) autoSave(); });
 window.addEventListener("beforeunload", autoSave);
+document.getElementById("modalInput").addEventListener("keydown", e => { if (e.key === "Enter") confirmUserModal(); });
 </script>
 </body>
 </html>

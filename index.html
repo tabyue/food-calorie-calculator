@@ -1427,16 +1427,19 @@ function renderHistoryList(data) {
   el.innerHTML = '<div class="history-list">' + withData.map(d => {
     const weekdays = ["日","一","二","三","四","五","六"];
     const dt = new Date(d.date + "T00:00:00");
-    return `<div class="history-item" onclick="goToDate('${d.date}')">
-      <div><div class="h-date">${(dt.getMonth()+1) + "/" + dt.getDate()}</div><div class="h-weekday">周${weekdays[dt.getDay()]}</div></div>
-      <div class="h-stats">
-        <div class="h-stat"><div class="h-val h-cal">${d.calories.toFixed(0)}</div><div class="h-lbl">kcal</div></div>
-        <div class="h-stat"><div class="h-val">${d.protein.toFixed(0)}</div><div class="h-lbl">蛋白质g</div></div>
-        <div class="h-stat"><div class="h-val">${d.carbs.toFixed(0)}</div><div class="h-lbl">碳水g</div></div>
-        <div class="h-stat"><div class="h-val">${d.fat.toFixed(0)}</div><div class="h-lbl">脂肪g</div></div>
+    return `<div class="history-item">
+      <div onclick="goToDate('${d.date}')" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+        <div><div class="h-date">${(dt.getMonth()+1) + "/" + dt.getDate()}</div><div class="h-weekday">周${weekdays[dt.getDay()]}</div></div>
+        <div class="h-stats">
+          <div class="h-stat"><div class="h-val h-cal">${d.calories.toFixed(0)}</div><div class="h-lbl">kcal</div></div>
+          <div class="h-stat"><div class="h-val">${d.protein.toFixed(0)}</div><div class="h-lbl">蛋白质g</div></div>
+          <div class="h-stat"><div class="h-val">${d.carbs.toFixed(0)}</div><div class="h-lbl">碳水g</div></div>
+          <div class="h-stat"><div class="h-val">${d.fat.toFixed(0)}</div><div class="h-lbl">脂肪g</div></div>
+        </div>
+        <div class="h-count">${d.count}项</div>
+        <div class="h-arrow">›</div>
       </div>
-      <div class="h-count">${d.count}项</div>
-      <div class="h-arrow">›</div>
+      <button onclick="event.stopPropagation();deleteHistoryDay('${d.date}')" style="background:none;border:none;color:var(--text-light);font-size:16px;padding:8px;cursor:pointer;flex-shrink:0;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" title="删除此天记录">🗑️</button>
     </div>`;
   }).join('') + '</div>';
 }
@@ -1448,6 +1451,20 @@ function goToDate(date) {
   updateDateDisplay();
   renderRecord();
   switchPage('record');
+}
+
+function deleteHistoryDay(date) {
+  const d = new Date(date + "T00:00:00");
+  const label = (d.getMonth()+1) + "月" + d.getDate() + "日";
+  if (!confirm("确定删除 " + label + " 的饮食记录？")) return;
+  deleteDayRecord(date);
+  // If deleting the currently viewed day, also clear selection
+  if (date === currentDate) {
+    selectedFoods = [];
+    renderRecord();
+  }
+  renderHistory();
+  showToast("已删除 " + label + " 的记录");
 }
 
 // ===========================================================================

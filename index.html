@@ -4,122 +4,387 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>每日饮食热量计算器</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍱</text></svg>">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
   :root {
-    --primary: #4CAF50;
-    --primary-dark: #388E3C;
-    --accent: #FF9800;
-    --danger: #f44336;
-    --bg: #f5f7fa;
+    --primary: #10b981;
+    --primary-light: #d1fae5;
+    --primary-dark: #059669;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --info: #3b82f6;
+    --info-light: #dbeafe;
+    --purple: #8b5cf6;
+    --purple-light: #ede9fe;
+    --bg: #f0f2f5;
     --card: #ffffff;
-    --text: #333333;
-    --text-light: #777777;
-    --border: #e0e0e0;
-    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --text: #1a1a2e;
+    --text-secondary: #64748b;
+    --text-light: #94a3b8;
+    --border: #e2e8f0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow: 0 4px 20px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 40px rgba(0,0,0,0.1);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+    --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     background: var(--bg);
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-
-  header {
+  /* ===== Header ===== */
+  .hero {
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
+    padding: 48px 20px 60px;
     text-align: center;
-    padding: 30px 0 20px;
+    position: relative;
+    overflow: hidden;
   }
 
-  header h1 {
-    font-size: 28px;
-    color: var(--primary-dark);
-    margin-bottom: 6px;
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%);
+    animation: heroGlow 8s ease-in-out infinite alternate;
   }
 
-  header p {
+  @keyframes heroGlow {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(30px, -20px); }
+  }
+
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 8px;
+    position: relative;
+    letter-spacing: -0.5px;
+  }
+
+  .hero p {
+    color: rgba(255,255,255,0.85);
+    font-size: 16px;
+    position: relative;
+  }
+
+  /* ===== Container ===== */
+  .container {
+    max-width: 1080px;
+    margin: -30px auto 0;
+    padding: 0 20px 40px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== Summary Bar (sticky) ===== */
+  .summary-bar {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 20px 28px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    position: sticky;
+    top: 10px;
+    z-index: 100;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  .summary-item {
+    text-align: center;
+    position: relative;
+  }
+
+  .summary-item::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: 15%;
+    height: 70%;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .summary-item:last-child::after { display: none; }
+
+  .summary-item .value {
+    font-size: 30px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .summary-item .value.calories {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .summary-item .label {
+    font-size: 12px;
     color: var(--text-light);
-    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
   }
 
+  /* ===== Card ===== */
   .card {
     background: var(--card);
-    border-radius: 12px;
+    border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 24px;
+    padding: 28px;
     margin-bottom: 20px;
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: box-shadow var(--transition);
   }
 
-  .card h2 {
-    font-size: 18px;
-    margin-bottom: 16px;
+  .card:hover {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
-  /* 食物选择区域 */
+  .card-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+  }
+
+  .card-header h2 .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .icon-green  { background: var(--primary-light); }
+  .icon-orange { background: var(--accent-light); }
+  .icon-blue   { background: var(--info-light); }
+  .icon-purple { background: var(--purple-light); }
+
+  /* ===== Search ===== */
+  .search-bar {
+    position: relative;
+    max-width: 320px;
+  }
+
+  .search-bar input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    background: #f8fafc;
+  }
+
+  .search-bar input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    background: white;
+  }
+
+  .search-bar .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    font-size: 15px;
+    pointer-events: none;
+  }
+
+  /* ===== Category Tabs ===== */
+  .category-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    padding: 8px 18px;
+    border: 2px solid var(--border);
+    border-radius: 50px;
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary-dark);
+    background: var(--primary-light);
+  }
+
+  .tab-btn.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+  }
+
+  .tab-btn .tab-count {
+    display: inline-block;
+    background: rgba(0,0,0,0.08);
+    padding: 1px 7px;
+    border-radius: 20px;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  .tab-btn.active .tab-count {
+    background: rgba(255,255,255,0.3);
+  }
+
+  /* ===== Food Grid ===== */
   .food-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px;
-    margin-bottom: 16px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .food-grid::-webkit-scrollbar {
+    width: 6px;
+  }
+  .food-grid::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .food-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
   }
 
   .food-item {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
+    justify-content: center;
+    padding: 14px 8px 12px;
     border: 2px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition);
     user-select: none;
+    text-align: center;
+    background: white;
+    position: relative;
   }
 
   .food-item:hover {
     border-color: var(--primary);
-    background: #f0faf0;
+    background: #f0fdf4;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.15);
   }
 
   .food-item.selected {
     border-color: var(--primary);
-    background: #e8f5e9;
+    background: var(--primary-light);
+  }
+
+  .food-item.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
   }
 
   .food-item .emoji {
-    font-size: 24px;
-    flex-shrink: 0;
-  }
-
-  .food-item .info {
-    flex: 1;
-    min-width: 0;
+    font-size: 32px;
+    margin-bottom: 6px;
+    line-height: 1;
   }
 
   .food-item .name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    white-space: nowrap;
+    color: var(--text);
+    line-height: 1.3;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .food-item .cal {
     font-size: 11px;
     color: var(--text-light);
+    margin-top: 2px;
   }
 
-  /* 已选食物列表 */
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: var(--text-light);
+    font-size: 14px;
+  }
+
+  /* ===== Selected Food Table ===== */
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
   .selected-list {
     width: 100%;
     border-collapse: collapse;
@@ -127,150 +392,182 @@
 
   .selected-list th {
     text-align: left;
-    padding: 10px 12px;
-    background: #f9f9f9;
-    font-size: 13px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    font-size: 12px;
     color: var(--text-light);
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     border-bottom: 2px solid var(--border);
+    white-space: nowrap;
   }
 
   .selected-list td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
     font-size: 14px;
     vertical-align: middle;
+  }
+
+  .selected-list tbody tr {
+    transition: background var(--transition);
+  }
+
+  .selected-list tbody tr:hover {
+    background: #f8fafc;
   }
 
   .selected-list tr:last-child td {
     border-bottom: none;
   }
 
-  .selected-list .amount-input {
-    width: 70px;
-    padding: 6px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    text-align: center;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
+  .food-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
   }
 
-  .selected-list .amount-input:focus {
+  .food-name-cell .emoji-sm {
+    font-size: 22px;
+  }
+
+  .amount-input {
+    width: 76px;
+    padding: 7px 10px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xs);
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    outline: none;
+    transition: all var(--transition);
+    background: #f8fafc;
+  }
+
+  .amount-input:focus {
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    background: white;
+  }
+
+  .nutrient-val {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .nutrient-val .unit {
+    color: var(--text-light);
+    font-weight: 400;
+    font-size: 11px;
   }
 
   .btn-remove {
     background: none;
-    border: none;
-    color: var(--danger);
+    border: 2px solid transparent;
+    color: var(--text-light);
     cursor: pointer;
-    font-size: 18px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: background 0.2s;
+    font-size: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
   }
 
   .btn-remove:hover {
-    background: #ffebee;
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
   }
 
-  .empty-msg {
+  .empty-state {
     text-align: center;
-    padding: 30px;
-    color: var(--text-light);
-    font-size: 14px;
+    padding: 48px 20px;
   }
 
-  /* 手动添加食物 */
+  .empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .empty-state .empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .empty-state .empty-desc {
+    font-size: 13px;
+    color: var(--text-light);
+  }
+
+  /* ===== Add Form ===== */
   .add-form {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
-    gap: 10px;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+    gap: 12px;
     align-items: end;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
   }
 
   .form-group label {
     font-size: 12px;
-    color: var(--text-light);
-    font-weight: 600;
+    color: var(--text-secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
   .form-group input {
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    padding: 9px 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xs);
     font-size: 14px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all var(--transition);
+    background: #f8fafc;
   }
 
   .form-group input:focus {
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    background: white;
+  }
+
+  .form-group input::placeholder {
+    color: #cbd5e1;
   }
 
   .btn-add {
-    padding: 8px 20px;
-    background: var(--accent);
+    padding: 9px 24px;
+    background: linear-gradient(135deg, var(--accent), #d97706);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-xs);
     cursor: pointer;
     font-size: 14px;
-    font-weight: 600;
-    transition: background 0.2s;
+    font-weight: 700;
+    transition: all var(--transition);
     white-space: nowrap;
-    height: 38px;
+    height: 42px;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.3);
   }
 
   .btn-add:hover {
-    background: #F57C00;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(245,158,11,0.4);
   }
 
-  /* 汇总面板 */
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-  }
-
-  .summary-item {
-    text-align: center;
-    padding: 16px;
-    background: linear-gradient(135deg, #f5f5f5, #ffffff);
-    border-radius: 10px;
-    border: 1px solid var(--border);
-  }
-
-  .summary-item .value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--primary-dark);
-  }
-
-  .summary-item .value.calories {
-    color: var(--danger);
-  }
-
-  .summary-item .label {
-    font-size: 12px;
-    color: var(--text-light);
-    margin-top: 4px;
-  }
-
-  .summary-item .unit {
-    font-size: 14px;
-    font-weight: 400;
-  }
-
-  /* 清空按钮 */
+  /* ===== Action Buttons ===== */
   .actions {
     display: flex;
     justify-content: flex-end;
@@ -279,194 +576,535 @@
   }
 
   .btn-clear {
-    padding: 8px 20px;
-    background: var(--danger);
-    color: white;
-    border: none;
-    border-radius: 8px;
+    padding: 9px 24px;
+    background: white;
+    color: var(--danger);
+    border: 2px solid var(--danger);
+    border-radius: var(--radius-xs);
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: background 0.2s;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all var(--transition);
   }
 
   .btn-clear:hover {
-    background: #d32f2f;
+    background: var(--danger);
+    color: white;
   }
 
+  /* ===== Progress Bar ===== */
+  .calorie-progress {
+    margin-top: 12px;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .progress-track {
+    height: 12px;
+    background: #f1f5f9;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transition: width 0.5s ease;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .progress-fill.warning {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  }
+
+  .progress-fill.over {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+  }
+
+  .macro-bars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .macro-bar-item {
+    text-align: center;
+  }
+
+  .macro-bar-item .macro-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mini-progress {
+    height: 8px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+
+  .mini-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+  }
+
+  .mini-fill.protein { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+  .mini-fill.carbs   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .mini-fill.fat     { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+
+  .macro-bar-item .macro-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .macro-bar-item .macro-val span {
+    color: var(--text-light);
+    font-weight: 400;
+  }
+
+  /* ===== Footer ===== */
   footer {
     text-align: center;
-    padding: 20px;
+    padding: 24px 20px;
     color: var(--text-light);
     font-size: 12px;
   }
 
-  /* 响应式 */
-  @media (max-width: 700px) {
+  footer a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 768px) {
+    .hero { padding: 36px 16px 50px; }
+    .hero h1 { font-size: 26px; }
+    .container { padding: 0 12px 30px; }
+
+    .summary-bar {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 16px;
+    }
+    .summary-item:nth-child(3)::after { display: none; }
+    .summary-item .value { font-size: 22px; }
+
+    .food-grid {
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      max-height: 350px;
+    }
+
     .add-form {
       grid-template-columns: 1fr 1fr;
     }
-    .food-grid {
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    }
-    .summary-grid {
-      grid-template-columns: repeat(2, 1fr);
+
+    .macro-bars {
+      grid-template-columns: 1fr;
+      gap: 10px;
     }
   }
 
   @media (max-width: 480px) {
-    .container { padding: 12px; }
-    header h1 { font-size: 22px; }
-    .card { padding: 16px; }
+    .hero h1 { font-size: 22px; }
+    .card { padding: 18px; }
+    .summary-bar {
+      grid-template-columns: repeat(2, 1fr);
+    }
     .add-form {
       grid-template-columns: 1fr;
     }
+    .food-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .food-item { padding: 10px 6px 8px; }
+    .food-item .emoji { font-size: 26px; }
+    .food-item .name { font-size: 12px; }
   }
+
+  /* ===== Animations ===== */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card { animation: fadeInUp 0.4s ease both; }
+  .card:nth-child(2) { animation-delay: 0.05s; }
+  .card:nth-child(3) { animation-delay: 0.1s; }
+  .card:nth-child(4) { animation-delay: 0.15s; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <header>
-    <h1>🍱 每日饮食热量计算器</h1>
-    <p>选择或添加今天吃的食物，自动计算营养摄入</p>
-  </header>
+<div class="hero">
+  <h1>🍱 每日饮食热量计算器</h1>
+  <p>记录饮食 · 掌控营养 · 吃得明白</p>
+</div>
 
-  <!-- 常见食物选择 -->
+<div class="container">
+
+  <!-- 营养汇总 Sticky Bar -->
+  <div class="summary-bar" id="summaryBar">
+    <div class="summary-item">
+      <div class="value calories" id="totalCalories">0</div>
+      <div class="label">热量 kcal</div>
+    </div>
+    <div class="summary-item">
+      <div class="value" id="totalProtein">0</div>
+      <div class="label">蛋白质 g</div>
+    </div>
+    <div class="summary-item">
+      <div class="value" id="totalCarbs">0</div>
+      <div class="label">碳水 g</div>
+    </div>
+    <div class="summary-item">
+      <div class="value" id="totalFat">0</div>
+      <div class="label">脂肪 g</div>
+    </div>
+    <div class="summary-item">
+      <div class="value" id="totalFiber">0</div>
+      <div class="label">膳食纤维 g</div>
+    </div>
+  </div>
+
+  <!-- 食物选择 -->
   <div class="card">
-    <h2>📋 常见食物（点击选择）</h2>
+    <div class="card-header">
+      <h2><span class="icon icon-green">📋</span>选择食物</h2>
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索食物..." oninput="onSearch()">
+      </div>
+    </div>
+    <div class="category-tabs" id="categoryTabs"></div>
     <div class="food-grid" id="foodGrid"></div>
   </div>
 
   <!-- 手动添加食物 -->
   <div class="card">
-    <h2>➕ 手动添加食物</h2>
+    <div class="card-header">
+      <h2><span class="icon icon-orange">➕</span>手动添加食物</h2>
+    </div>
     <div class="add-form">
       <div class="form-group">
         <label>食物名称</label>
-        <input type="text" id="customName" placeholder="如：牛肉面">
+        <input type="text" id="customName" placeholder="如：红烧牛肉面">
       </div>
       <div class="form-group">
-        <label>热量 (kcal/100g)</label>
+        <label>热量 kcal/100g</label>
         <input type="number" id="customCalories" placeholder="350">
       </div>
       <div class="form-group">
-        <label>蛋白质 (g/100g)</label>
+        <label>蛋白质 g/100g</label>
         <input type="number" id="customProtein" placeholder="12">
       </div>
       <div class="form-group">
-        <label>碳水 (g/100g)</label>
+        <label>碳水 g/100g</label>
         <input type="number" id="customCarbs" placeholder="45">
       </div>
       <div class="form-group">
-        <label>脂肪 (g/100g)</label>
+        <label>脂肪 g/100g</label>
         <input type="number" id="customFat" placeholder="8">
       </div>
-      <button class="btn-add" onclick="addCustomFood()">添加</button>
+      <button class="btn-add" onclick="addCustomFood()">+ 添加</button>
     </div>
   </div>
 
-  <!-- 已选食物 -->
+  <!-- 已选食物列表 -->
   <div class="card">
-    <h2>🥗 今日已选食物</h2>
+    <div class="card-header">
+      <h2><span class="icon icon-blue">🥗</span>今日饮食记录</h2>
+    </div>
     <div id="selectedArea">
-      <div class="empty-msg">还没有选择食物，点击上方食物卡片开始记录吧~</div>
+      <div class="empty-state">
+        <div class="empty-icon">🍽️</div>
+        <div class="empty-title">还没有添加食物</div>
+        <div class="empty-desc">点击上方食物卡片，开始记录今天的饮食吧</div>
+      </div>
     </div>
     <div class="actions" id="actionsArea" style="display:none;">
       <button class="btn-clear" onclick="clearAll()">🗑️ 清空全部</button>
     </div>
   </div>
 
-  <!-- 营养汇总 -->
+  <!-- 营养分析 -->
   <div class="card">
-    <h2>📊 今日营养摄入汇总</h2>
-    <div class="summary-grid">
-      <div class="summary-item">
-        <div class="value calories" id="totalCalories">0</div>
-        <div class="label">总热量 (kcal)</div>
+    <div class="card-header">
+      <h2><span class="icon icon-purple">📊</span>营养摄入分析</h2>
+    </div>
+    <div class="calorie-progress">
+      <div class="progress-header">
+        <span>今日热量</span>
+        <span id="calorieStatus">0 / 2000 kcal</span>
       </div>
-      <div class="summary-item">
-        <div class="value" id="totalProtein">0</div>
-        <div class="label">蛋白质 (g)</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="calorieFill" style="width: 0%"></div>
       </div>
-      <div class="summary-item">
-        <div class="value" id="totalCarbs">0</div>
-        <div class="label">碳水化合物 (g)</div>
+    </div>
+    <div class="macro-bars">
+      <div class="macro-bar-item">
+        <div class="macro-label">蛋白质</div>
+        <div class="mini-progress">
+          <div class="mini-fill protein" id="proteinFill" style="width: 0%"></div>
+        </div>
+        <div class="macro-val" id="proteinStatus">0g <span>/ 65g</span></div>
       </div>
-      <div class="summary-item">
-        <div class="value" id="totalFat">0</div>
-        <div class="label">脂肪 (g)</div>
+      <div class="macro-bar-item">
+        <div class="macro-label">碳水化合物</div>
+        <div class="mini-progress">
+          <div class="mini-fill carbs" id="carbsFill" style="width: 0%"></div>
+        </div>
+        <div class="macro-val" id="carbsStatus">0g <span>/ 300g</span></div>
       </div>
-      <div class="summary-item">
-        <div class="value" id="totalFiber">0</div>
-        <div class="label">膳食纤维 (g)</div>
+      <div class="macro-bar-item">
+        <div class="macro-label">脂肪</div>
+        <div class="mini-progress">
+          <div class="mini-fill fat" id="fatFill" style="width: 0%"></div>
+        </div>
+        <div class="macro-val" id="fatStatus">0g <span>/ 60g</span></div>
       </div>
     </div>
   </div>
 
   <footer>
-    数据仅供参考，实际营养含量因烹饪方式和食材差异可能有所不同。
+    营养数据来源于中国食物成分表，仅供参考。实际营养含量因烹饪方式和食材差异可能有所不同。
   </footer>
 </div>
 
 <script>
-// 预设10种中国人最常见的食物（每100g的营养数据）
-const presetFoods = [
-  { name: "米饭（熟）", emoji: "🍚", calories: 116, protein: 2.6, carbs: 25.6, fat: 0.3, fiber: 0.3 },
-  { name: "馒头",       emoji: "🫓", calories: 221, protein: 7.0, carbs: 45.7, fat: 1.1, fiber: 1.3 },
-  { name: "面条（熟）", emoji: "🍜", calories: 110, protein: 3.4, carbs: 22.5, fat: 0.5, fiber: 0.8 },
-  { name: "鸡蛋（煮）", emoji: "🥚", calories: 144, protein: 13.3, carbs: 1.5, fat: 8.8, fiber: 0   },
-  { name: "猪肉（瘦）", emoji: "🥩", calories: 143, protein: 20.3, carbs: 1.5, fat: 6.2, fiber: 0   },
-  { name: "鸡胸肉",     emoji: "🍗", calories: 133, protein: 19.4, carbs: 2.5, fat: 5.0, fiber: 0   },
-  { name: "豆腐",       emoji: "🧈", calories: 81,  protein: 8.1, carbs: 4.2, fat: 3.7, fiber: 0.4 },
-  { name: "西红柿",     emoji: "🍅", calories: 19,  protein: 0.9, carbs: 3.5, fat: 0.2, fiber: 0.5 },
-  { name: "白菜",       emoji: "🥬", calories: 17,  protein: 1.5, carbs: 2.2, fat: 0.2, fiber: 0.8 },
-  { name: "牛奶",       emoji: "🥛", calories: 54,  protein: 3.0, carbs: 3.4, fat: 3.2, fiber: 0   },
-];
+// ============================
+// 预设食物数据库（按分类，每100g营养数据）
+// ============================
+const foodDatabase = {
+  "主食": [
+    { name: "米饭（熟）",   emoji: "🍚", calories: 116, protein: 2.6, carbs: 25.6, fat: 0.3, fiber: 0.3 },
+    { name: "馒头",         emoji: "🫓", calories: 221, protein: 7.0, carbs: 45.7, fat: 1.1, fiber: 1.3 },
+    { name: "面条（熟）",   emoji: "🍜", calories: 110, protein: 3.4, carbs: 22.5, fat: 0.5, fiber: 0.8 },
+    { name: "饺子",         emoji: "🥟", calories: 240, protein: 9.5, carbs: 30.0, fat: 8.5, fiber: 1.2 },
+    { name: "包子（肉）",   emoji: "🟤", calories: 227, protein: 8.5, carbs: 30.2, fat: 8.0, fiber: 1.0 },
+    { name: "花卷",         emoji: "🌀", calories: 214, protein: 6.4, carbs: 43.2, fat: 1.5, fiber: 1.4 },
+    { name: "粥（白米）",   emoji: "🥣", calories: 46,  protein: 1.1, carbs: 9.9,  fat: 0.1, fiber: 0.1 },
+    { name: "烧饼",         emoji: "🥮", calories: 326, protein: 8.4, carbs: 50.3, fat: 10.1, fiber: 1.5 },
+    { name: "油条",         emoji: "🥖", calories: 386, protein: 6.9, carbs: 51.0, fat: 17.6, fiber: 0.9 },
+    { name: "年糕",         emoji: "🍡", calories: 154, protein: 3.3, carbs: 34.7, fat: 0.6, fiber: 0.5 },
+    { name: "玉米（熟）",   emoji: "🌽", calories: 112, protein: 4.0, carbs: 22.8, fat: 1.2, fiber: 2.9 },
+    { name: "红薯（蒸）",   emoji: "🍠", calories: 99,  protein: 1.1, carbs: 23.1, fat: 0.2, fiber: 1.6 },
+    { name: "土豆（蒸）",   emoji: "🥔", calories: 81,  protein: 2.0, carbs: 17.8, fat: 0.2, fiber: 1.0 },
+    { name: "小米粥",       emoji: "🥣", calories: 46,  protein: 1.4, carbs: 8.4,  fat: 0.7, fiber: 0.4 },
+  ],
+  "肉类": [
+    { name: "猪肉（瘦）",   emoji: "🥩", calories: 143, protein: 20.3, carbs: 1.5, fat: 6.2, fiber: 0 },
+    { name: "猪五花",       emoji: "🥓", calories: 349, protein: 14.0, carbs: 0.8, fat: 32.0, fiber: 0 },
+    { name: "猪排骨",       emoji: "🍖", calories: 278, protein: 18.3, carbs: 1.2, fat: 22.0, fiber: 0 },
+    { name: "鸡胸肉",       emoji: "🍗", calories: 133, protein: 19.4, carbs: 2.5, fat: 5.0, fiber: 0 },
+    { name: "鸡腿",         emoji: "🍗", calories: 181, protein: 16.0, carbs: 1.8, fat: 12.3, fiber: 0 },
+    { name: "鸡翅",         emoji: "🐔", calories: 194, protein: 17.4, carbs: 0.8, fat: 13.6, fiber: 0 },
+    { name: "牛肉（瘦）",   emoji: "🐄", calories: 106, protein: 20.2, carbs: 1.2, fat: 2.3, fiber: 0 },
+    { name: "牛腩",         emoji: "🥩", calories: 332, protein: 17.1, carbs: 0,   fat: 29.3, fiber: 0 },
+    { name: "羊肉",         emoji: "🐑", calories: 203, protein: 19.0, carbs: 0.2, fat: 14.1, fiber: 0 },
+    { name: "鸭肉",         emoji: "🦆", calories: 240, protein: 15.5, carbs: 0.1, fat: 19.7, fiber: 0 },
+    { name: "腊肉",         emoji: "🥓", calories: 498, protein: 17.0, carbs: 3.0, fat: 48.0, fiber: 0 },
+    { name: "火腿肠",       emoji: "🌭", calories: 212, protein: 10.0, carbs: 7.8, fat: 15.3, fiber: 0 },
+  ],
+  "水产": [
+    { name: "草鱼",         emoji: "🐟", calories: 113, protein: 16.6, carbs: 0,   fat: 5.2, fiber: 0 },
+    { name: "鲈鱼",         emoji: "🐟", calories: 105, protein: 18.6, carbs: 0,   fat: 3.4, fiber: 0 },
+    { name: "带鱼",         emoji: "🐟", calories: 127, protein: 17.7, carbs: 0,   fat: 4.9, fiber: 0 },
+    { name: "虾仁",         emoji: "🦐", calories: 87,  protein: 18.6, carbs: 1.0, fat: 0.8, fiber: 0 },
+    { name: "基围虾",       emoji: "🦐", calories: 101, protein: 18.2, carbs: 2.8, fat: 1.4, fiber: 0 },
+    { name: "螃蟹",         emoji: "🦀", calories: 95,  protein: 13.8, carbs: 2.3, fat: 3.6, fiber: 0 },
+    { name: "鱿鱼",         emoji: "🦑", calories: 92,  protein: 17.0, carbs: 2.6, fat: 1.3, fiber: 0 },
+    { name: "三文鱼",       emoji: "🍣", calories: 139, protein: 17.2, carbs: 0,   fat: 7.8, fiber: 0 },
+  ],
+  "蛋奶豆": [
+    { name: "鸡蛋（煮）",   emoji: "🥚", calories: 144, protein: 13.3, carbs: 1.5, fat: 8.8, fiber: 0 },
+    { name: "鸡蛋（炒）",   emoji: "🍳", calories: 199, protein: 12.6, carbs: 1.8, fat: 15.3, fiber: 0 },
+    { name: "鹌鹑蛋",       emoji: "🥚", calories: 160, protein: 12.8, carbs: 0.6, fat: 11.1, fiber: 0 },
+    { name: "牛奶",         emoji: "🥛", calories: 54,  protein: 3.0, carbs: 3.4, fat: 3.2, fiber: 0 },
+    { name: "酸奶",         emoji: "🥛", calories: 72,  protein: 2.5, carbs: 9.3, fat: 2.7, fiber: 0 },
+    { name: "奶酪",         emoji: "🧀", calories: 328, protein: 25.7, carbs: 3.5, fat: 23.5, fiber: 0 },
+    { name: "豆腐",         emoji: "🟨", calories: 81,  protein: 8.1, carbs: 4.2, fat: 3.7, fiber: 0.4 },
+    { name: "豆腐干",       emoji: "🟫", calories: 140, protein: 16.2, carbs: 4.9, fat: 7.5, fiber: 0.5 },
+    { name: "豆浆",         emoji: "🥛", calories: 31,  protein: 1.8, carbs: 1.1, fat: 0.7, fiber: 1.1 },
+    { name: "腐竹",         emoji: "🟡", calories: 461, protein: 44.6, carbs: 22.3, fat: 21.7, fiber: 1.0 },
+  ],
+  "蔬菜": [
+    { name: "白菜",         emoji: "🥬", calories: 17,  protein: 1.5, carbs: 2.2, fat: 0.2, fiber: 0.8 },
+    { name: "菠菜",         emoji: "🥬", calories: 24,  protein: 2.6, carbs: 2.8, fat: 0.3, fiber: 1.7 },
+    { name: "西红柿",       emoji: "🍅", calories: 19,  protein: 0.9, carbs: 3.5, fat: 0.2, fiber: 0.5 },
+    { name: "黄瓜",         emoji: "🥒", calories: 15,  protein: 0.8, carbs: 2.9, fat: 0.2, fiber: 0.5 },
+    { name: "胡萝卜",       emoji: "🥕", calories: 37,  protein: 1.0, carbs: 8.1, fat: 0.2, fiber: 2.7 },
+    { name: "西兰花",       emoji: "🥦", calories: 33,  protein: 4.1, carbs: 4.3, fat: 0.6, fiber: 1.6 },
+    { name: "豆角",         emoji: "🫘", calories: 34,  protein: 2.5, carbs: 5.9, fat: 0.2, fiber: 1.4 },
+    { name: "茄子",         emoji: "🍆", calories: 21,  protein: 1.1, carbs: 3.6, fat: 0.2, fiber: 1.3 },
+    { name: "青椒",         emoji: "🫑", calories: 22,  protein: 1.0, carbs: 4.5, fat: 0.2, fiber: 1.4 },
+    { name: "生菜",         emoji: "🥗", calories: 13,  protein: 1.3, carbs: 1.6, fat: 0.3, fiber: 0.7 },
+    { name: "芹菜",         emoji: "🌿", calories: 14,  protein: 0.8, carbs: 2.2, fat: 0.1, fiber: 1.2 },
+    { name: "蘑菇",         emoji: "🍄", calories: 20,  protein: 2.7, carbs: 2.4, fat: 0.1, fiber: 2.1 },
+    { name: "木耳",         emoji: "🟤", calories: 27,  protein: 1.5, carbs: 5.4, fat: 0.2, fiber: 2.6 },
+    { name: "莲藕",         emoji: "🌸", calories: 70,  protein: 1.9, carbs: 16.4, fat: 0.2, fiber: 1.2 },
+    { name: "南瓜",         emoji: "🎃", calories: 22,  protein: 0.7, carbs: 4.5, fat: 0.1, fiber: 0.8 },
+    { name: "冬瓜",         emoji: "🟢", calories: 11,  protein: 0.3, carbs: 2.4, fat: 0.1, fiber: 0.7 },
+  ],
+  "水果": [
+    { name: "苹果",         emoji: "🍎", calories: 53,  protein: 0.2, carbs: 13.5, fat: 0.2, fiber: 1.2 },
+    { name: "香蕉",         emoji: "🍌", calories: 93,  protein: 1.4, carbs: 22.0, fat: 0.2, fiber: 1.2 },
+    { name: "橘子",         emoji: "🍊", calories: 44,  protein: 0.8, carbs: 10.2, fat: 0.1, fiber: 0.4 },
+    { name: "葡萄",         emoji: "🍇", calories: 44,  protein: 0.5, carbs: 10.3, fat: 0.2, fiber: 0.4 },
+    { name: "西瓜",         emoji: "🍉", calories: 31,  protein: 0.5, carbs: 5.8,  fat: 0.1, fiber: 0.3 },
+    { name: "草莓",         emoji: "🍓", calories: 30,  protein: 1.0, carbs: 6.2,  fat: 0.2, fiber: 1.1 },
+    { name: "桃子",         emoji: "🍑", calories: 44,  protein: 0.8, carbs: 10.9, fat: 0.1, fiber: 1.3 },
+    { name: "梨",           emoji: "🍐", calories: 50,  protein: 0.3, carbs: 13.0, fat: 0.2, fiber: 2.1 },
+    { name: "芒果",         emoji: "🥭", calories: 65,  protein: 0.6, carbs: 15.7, fat: 0.2, fiber: 1.3 },
+    { name: "猕猴桃",       emoji: "🥝", calories: 56,  protein: 0.8, carbs: 11.9, fat: 0.6, fiber: 2.6 },
+    { name: "榴莲",         emoji: "🟡", calories: 150, protein: 2.6, carbs: 28.3, fat: 3.3, fiber: 1.7 },
+    { name: "樱桃",         emoji: "🍒", calories: 46,  protein: 1.1, carbs: 10.2, fat: 0.2, fiber: 0.3 },
+  ],
+  "零食饮品": [
+    { name: "薯片",         emoji: "🍟", calories: 540, protein: 6.4, carbs: 49.7, fat: 37.0, fiber: 4.0 },
+    { name: "巧克力",       emoji: "🍫", calories: 589, protein: 4.3, carbs: 53.0, fat: 40.1, fiber: 3.4 },
+    { name: "饼干",         emoji: "🍪", calories: 433, protein: 8.3, carbs: 65.0, fat: 16.0, fiber: 0.8 },
+    { name: "面包（白）",   emoji: "🍞", calories: 312, protein: 8.3, carbs: 58.6, fat: 5.1, fiber: 1.3 },
+    { name: "全麦面包",     emoji: "🍞", calories: 246, protein: 10.6, carbs: 42.7, fat: 3.8, fiber: 6.1 },
+    { name: "蛋糕",         emoji: "🍰", calories: 348, protein: 7.0, carbs: 56.0, fat: 11.0, fiber: 0.5 },
+    { name: "冰淇淋",       emoji: "🍦", calories: 207, protein: 3.5, carbs: 23.7, fat: 11.0, fiber: 0 },
+    { name: "可乐",         emoji: "🥤", calories: 43,  protein: 0,   carbs: 10.6, fat: 0,   fiber: 0 },
+    { name: "橙汁",         emoji: "🧃", calories: 45,  protein: 0.7, carbs: 10.4, fat: 0.2, fiber: 0.2 },
+    { name: "啤酒",         emoji: "🍺", calories: 32,  protein: 0.4, carbs: 3.4,  fat: 0,   fiber: 0 },
+    { name: "坚果混合",     emoji: "🥜", calories: 600, protein: 18.0, carbs: 15.0, fat: 52.0, fiber: 6.0 },
+    { name: "瓜子",         emoji: "🌻", calories: 606, protein: 23.9, carbs: 13.0, fat: 52.8, fiber: 4.0 },
+  ],
+  "调味佐料": [
+    { name: "食用油",       emoji: "🫒", calories: 899, protein: 0,   carbs: 0,   fat: 99.9, fiber: 0 },
+    { name: "白砂糖",       emoji: "🍬", calories: 400, protein: 0,   carbs: 99.9, fat: 0,   fiber: 0 },
+    { name: "蜂蜜",         emoji: "🍯", calories: 321, protein: 0.4, carbs: 75.6, fat: 0,   fiber: 0.2 },
+    { name: "酱油",         emoji: "🧴", calories: 63,  protein: 5.6, carbs: 8.3,  fat: 0.1, fiber: 0 },
+    { name: "老干妈",       emoji: "🌶️", calories: 593, protein: 8.0, carbs: 20.0, fat: 55.0, fiber: 3.0 },
+    { name: "花生酱",       emoji: "🥜", calories: 600, protein: 25.2, carbs: 14.5, fat: 49.8, fiber: 5.5 },
+  ],
+};
 
-// 所有可用食物（含预设 + 用户添加）
-let allFoods = [...presetFoods];
+// 全局状态
+let allFoods = [];
+let categories = [];
+let currentCategory = "全部";
+let searchQuery = "";
+let selectedFoods = []; // [{foodIdx, amount}]
 
-// 已选食物列表 [{food, amount}]
-let selectedFoods = [];
+// 推荐日摄入量
+const dailyTarget = { calories: 2000, protein: 65, carbs: 300, fat: 60 };
 
-// 从 localStorage 恢复用户自定义食物
+// 初始化食物列表
+function initFoods() {
+  allFoods = [];
+  categories = [];
+  for (const [cat, foods] of Object.entries(foodDatabase)) {
+    categories.push(cat);
+    foods.forEach(f => {
+      allFoods.push({ ...f, category: cat });
+    });
+  }
+}
+
+// 从 localStorage 恢复自定义食物
 function loadCustomFoods() {
   try {
-    const saved = localStorage.getItem("customFoods");
+    const saved = localStorage.getItem("customFoodsV2");
     if (saved) {
       const customs = JSON.parse(saved);
-      allFoods = [...presetFoods, ...customs];
+      customs.forEach(f => allFoods.push(f));
+      const extraCats = [...new Set(customs.map(f => f.category))];
+      extraCats.forEach(c => { if (!categories.includes(c)) categories.push(c); });
     }
   } catch(e) {}
 }
 
 function saveCustomFoods() {
-  const customs = allFoods.slice(presetFoods.length);
-  localStorage.setItem("customFoods", JSON.stringify(customs));
+  const dbCount = Object.values(foodDatabase).reduce((s, arr) => s + arr.length, 0);
+  const customs = allFoods.slice(dbCount);
+  localStorage.setItem("customFoodsV2", JSON.stringify(customs));
 }
 
-// 渲染食物选择网格
+// ===== Render Category Tabs =====
+function renderCategoryTabs() {
+  const container = document.getElementById("categoryTabs");
+  const allCount = getFilteredFoods("全部").length;
+  let html = `<button class="tab-btn ${currentCategory === '全部' ? 'active' : ''}" onclick="setCategory('全部')">全部<span class="tab-count">${allCount}</span></button>`;
+  categories.forEach(cat => {
+    const count = getFilteredFoods(cat).length;
+    if (count === 0) return;
+    html += `<button class="tab-btn ${currentCategory === cat ? 'active' : ''}" onclick="setCategory('${cat}')">${cat}<span class="tab-count">${count}</span></button>`;
+  });
+  container.innerHTML = html;
+}
+
+function setCategory(cat) {
+  currentCategory = cat;
+  render();
+}
+
+function getFilteredFoods(cat) {
+  let list = cat === "全部" ? allFoods : allFoods.filter(f => f.category === cat);
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    list = list.filter(f => f.name.toLowerCase().includes(q));
+  }
+  return list;
+}
+
+// ===== Render Food Grid =====
 function renderFoodGrid() {
   const grid = document.getElementById("foodGrid");
+  const filtered = getFilteredFoods(currentCategory);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="no-results">😅 没有找到匹配的食物，试试其他关键词</div>';
+    return;
+  }
+
   grid.innerHTML = "";
-  allFoods.forEach((food, idx) => {
-    const isSelected = selectedFoods.some(s => s.foodIdx === idx);
+  filtered.forEach(food => {
+    const globalIdx = allFoods.indexOf(food);
+    const isSelected = selectedFoods.some(s => s.foodIdx === globalIdx);
     const div = document.createElement("div");
     div.className = "food-item" + (isSelected ? " selected" : "");
-    div.onclick = () => toggleFood(idx);
+    div.onclick = () => toggleFood(globalIdx);
     div.innerHTML = `
       <span class="emoji">${food.emoji}</span>
-      <div class="info">
-        <div class="name">${food.name}</div>
-        <div class="cal">${food.calories} kcal/100g</div>
-      </div>
+      <div class="name" title="${food.name}">${food.name}</div>
+      <div class="cal">${food.calories} kcal</div>
     `;
     grid.appendChild(div);
   });
 }
 
-// 切换食物选择
+function onSearch() {
+  searchQuery = document.getElementById("searchInput").value.trim();
+  renderCategoryTabs();
+  renderFoodGrid();
+}
+
+// ===== Toggle / Select =====
 function toggleFood(idx) {
   const existIdx = selectedFoods.findIndex(s => s.foodIdx === idx);
   if (existIdx >= 0) {
@@ -477,92 +1115,105 @@ function toggleFood(idx) {
   render();
 }
 
-// 渲染已选列表
+// ===== Selected List =====
 function renderSelectedList() {
   const area = document.getElementById("selectedArea");
   const actions = document.getElementById("actionsArea");
 
   if (selectedFoods.length === 0) {
-    area.innerHTML = '<div class="empty-msg">还没有选择食物，点击上方食物卡片开始记录吧~</div>';
+    area.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🍽️</div>
+      <div class="empty-title">还没有添加食物</div>
+      <div class="empty-desc">点击上方食物卡片，开始记录今天的饮食吧</div>
+    </div>`;
     actions.style.display = "none";
     return;
   }
 
   actions.style.display = "flex";
-
-  let html = `<table class="selected-list">
-    <thead>
-      <tr>
-        <th>食物</th>
-        <th>数量 (g)</th>
-        <th>热量</th>
-        <th>蛋白质</th>
-        <th>碳水</th>
-        <th>脂肪</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>`;
+  let html = `<div class="table-wrapper"><table class="selected-list">
+    <thead><tr>
+      <th>食物</th><th>数量 (g)</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th></th>
+    </tr></thead><tbody>`;
 
   selectedFoods.forEach((item, i) => {
     const food = allFoods[item.foodIdx];
-    const ratio = item.amount / 100;
+    const r = item.amount / 100;
     html += `<tr>
-      <td>${food.emoji} ${food.name}</td>
+      <td><div class="food-name-cell"><span class="emoji-sm">${food.emoji}</span>${food.name}</div></td>
       <td><input class="amount-input" type="number" min="0" value="${item.amount}" onchange="updateAmount(${i}, this.value)" oninput="updateAmount(${i}, this.value)"></td>
-      <td>${(food.calories * ratio).toFixed(0)} kcal</td>
-      <td>${(food.protein * ratio).toFixed(1)} g</td>
-      <td>${(food.carbs * ratio).toFixed(1)} g</td>
-      <td>${(food.fat * ratio).toFixed(1)} g</td>
-      <td><button class="btn-remove" onclick="removeFood(${i})">✕</button></td>
+      <td><span class="nutrient-val">${(food.calories * r).toFixed(0)} <span class="unit">kcal</span></span></td>
+      <td><span class="nutrient-val">${(food.protein * r).toFixed(1)} <span class="unit">g</span></span></td>
+      <td><span class="nutrient-val">${(food.carbs * r).toFixed(1)} <span class="unit">g</span></span></td>
+      <td><span class="nutrient-val">${(food.fat * r).toFixed(1)} <span class="unit">g</span></span></td>
+      <td><button class="btn-remove" onclick="removeFood(${i})" title="移除">✕</button></td>
     </tr>`;
   });
 
-  html += `</tbody></table>`;
+  html += `</tbody></table></div>`;
   area.innerHTML = html;
 }
 
-// 更新数量
 function updateAmount(i, val) {
   selectedFoods[i].amount = parseFloat(val) || 0;
   renderSelectedList();
   renderSummary();
 }
 
-// 移除食物
 function removeFood(i) {
   selectedFoods.splice(i, 1);
   render();
 }
 
-// 清空全部
 function clearAll() {
+  if (!confirm("确定要清空所有已选食物吗？")) return;
   selectedFoods = [];
   render();
 }
 
-// 渲染汇总
+// ===== Summary =====
 function renderSummary() {
   let totalCal = 0, totalPro = 0, totalCarb = 0, totalFat = 0, totalFib = 0;
 
   selectedFoods.forEach(item => {
     const food = allFoods[item.foodIdx];
-    const ratio = item.amount / 100;
-    totalCal  += food.calories * ratio;
-    totalPro  += food.protein * ratio;
-    totalCarb += food.carbs * ratio;
-    totalFat  += food.fat * ratio;
-    totalFib  += (food.fiber || 0) * ratio;
+    const r = item.amount / 100;
+    totalCal  += food.calories * r;
+    totalPro  += food.protein * r;
+    totalCarb += food.carbs * r;
+    totalFat  += food.fat * r;
+    totalFib  += (food.fiber || 0) * r;
   });
 
+  // Sticky bar
   document.getElementById("totalCalories").textContent = totalCal.toFixed(0);
   document.getElementById("totalProtein").textContent  = totalPro.toFixed(1);
   document.getElementById("totalCarbs").textContent    = totalCarb.toFixed(1);
   document.getElementById("totalFat").textContent      = totalFat.toFixed(1);
   document.getElementById("totalFiber").textContent    = totalFib.toFixed(1);
+
+  // Calorie progress
+  const calPct = Math.min(totalCal / dailyTarget.calories * 100, 100);
+  const calFill = document.getElementById("calorieFill");
+  calFill.style.width = calPct + "%";
+  calFill.className = "progress-fill" + (calPct > 100 ? " over" : calPct > 80 ? " warning" : "");
+  document.getElementById("calorieStatus").textContent = `${totalCal.toFixed(0)} / ${dailyTarget.calories} kcal`;
+
+  // Macro bars
+  const proPct = Math.min(totalPro / dailyTarget.protein * 100, 100);
+  document.getElementById("proteinFill").style.width = proPct + "%";
+  document.getElementById("proteinStatus").innerHTML = `${totalPro.toFixed(1)}g <span>/ ${dailyTarget.protein}g</span>`;
+
+  const carbPct = Math.min(totalCarb / dailyTarget.carbs * 100, 100);
+  document.getElementById("carbsFill").style.width = carbPct + "%";
+  document.getElementById("carbsStatus").innerHTML = `${totalCarb.toFixed(1)}g <span>/ ${dailyTarget.carbs}g</span>`;
+
+  const fatPct = Math.min(totalFat / dailyTarget.fat * 100, 100);
+  document.getElementById("fatFill").style.width = fatPct + "%";
+  document.getElementById("fatStatus").innerHTML = `${totalFat.toFixed(1)}g <span>/ ${dailyTarget.fat}g</span>`;
 }
 
-// 手动添加食物
+// ===== Add Custom Food =====
 function addCustomFood() {
   const name     = document.getElementById("customName").value.trim();
   const calories = parseFloat(document.getElementById("customCalories").value);
@@ -573,14 +1224,13 @@ function addCustomFood() {
   if (!name) { alert("请输入食物名称"); return; }
   if (isNaN(calories) || calories <= 0) { alert("请输入有效的热量值"); return; }
 
-  const newFood = { name, emoji: "🍽️", calories, protein, carbs, fat, fiber: 0 };
+  const newFood = { name, emoji: "🍽️", calories, protein, carbs, fat, fiber: 0, category: "自定义" };
   allFoods.push(newFood);
+  if (!categories.includes("自定义")) categories.push("自定义");
   saveCustomFoods();
 
-  // 自动选中并添加到已选列表
   selectedFoods.push({ foodIdx: allFoods.length - 1, amount: 100 });
 
-  // 清空表单
   document.getElementById("customName").value = "";
   document.getElementById("customCalories").value = "";
   document.getElementById("customProtein").value = "";
@@ -590,14 +1240,16 @@ function addCustomFood() {
   render();
 }
 
-// 统一渲染
+// ===== Master Render =====
 function render() {
+  renderCategoryTabs();
   renderFoodGrid();
   renderSelectedList();
   renderSummary();
 }
 
-// 初始化
+// ===== Init =====
+initFoods();
 loadCustomFoods();
 render();
 </script>
